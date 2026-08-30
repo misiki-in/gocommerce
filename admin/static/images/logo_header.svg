@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="136" height="26" viewBox="0 0 136 26" fill="none">
+  <path d="M9 9.5V8.75a4 4 0 0 1 8 0v.75" stroke="#1e2416" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>
+  <path d="M6.75 9.5h12.5l-1.1 9.1a1.6 1.6 0 0 1-1.59 1.4H9.44a1.6 1.6 0 0 1-1.59-1.4L6.75 9.5Z" fill="#1e2416"/>
+  <text x="27" y="18.5" font-family="Inter, system-ui, sans-serif" font-size="15" font-weight="600" fill="#1e2416">GoCommerce</text>
+</svg>

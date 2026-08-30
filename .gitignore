@@ -1,0 +1,25 @@
+# Build output
+/gocommerce
+/gocommerce.exe
+/bin/
+*.exe
+# The linker leaves a backup beside the binary it replaced. `*.exe` does not
+# match it, and it is the same 19 MB.
+*.exe~
+*.test
+
+# Go tooling
+/vendor/
+*.out
+coverage.*
+
+# Local development
+.env
+.env.local
+*.local.json
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store

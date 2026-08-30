@@ -1,0 +1,363 @@
+# gocommerce API — a working request collection.
+#
+# Open this in VS Code with the REST Client extension, or in any JetBrains IDE,
+# and click "Send Request" above any block. Requests run top to bottom: the
+# cart and checkout blocks reuse ids captured from earlier responses.
+#
+# Start the server first:
+#   .\scripts\dev.ps1
+
+@host = http://127.0.0.1:8080
+@token = dev-token
+
+### ─────────────────────────────────────────────────── system
+
+# Liveness: the process is up. Touches nothing.
+GET {{host}}/health
+
+### Readiness: the database answers. This is what a load balancer should poll.
+GET {{host}}/health/ready
+
+### The OpenAPI contract this build serves.
+# Every route the engine mounts appears here — a test enforces it.
+GET {{host}}/doc
+
+### The browsable reference. Open in a browser rather than sending here.
+GET {{host}}/docs
+
+### ─────────────────────────────────────────────── public catalog
+
+# Only active products are visible. A draft is "not found" rather than
+# "forbidden": its existence is not a shopper's business.
+GET {{host}}/api/products?limit=10
+
+### Search
+GET {{host}}/api/products?q=tee
+
+### Paginate by page number. Pages count from 1, and the meta block reports
+# both coordinate systems: offset for a cursor, page/total_pages for a UI
+# drawing "2 of 5".
+GET {{host}}/api/products?limit=2&page=2
+
+### The same window, by offset. ?limit=2&page=2 and ?limit=2&offset=2 return
+# identical results.
+GET {{host}}/api/products?limit=2&offset=2
+
+### Sending both: page wins, because it is the more specific intent. This
+# returns page 2, not offset 999.
+GET {{host}}/api/products?limit=2&offset=999&page=2
+
+### By id
+GET {{host}}/api/products/1
+
+### By slug
+GET {{host}}/api/products/slug/cotton-tee
+
+### By SKU — resolves the variant's product. SKU is the catalog's stable key.
+GET {{host}}/api/products/sku/TEE-M-BLK
+
+### A product's variants
+GET {{host}}/api/variants?product_id=1
+
+### One variant, with its live stock
+GET {{host}}/api/variants/2
+
+### Ask for another language. Falls back to the store default when the
+# requested one is not served.
+GET {{host}}/api/products/1
+Accept-Language: fr
+
+### ────────────────────────────────────────────────────── cart
+
+# Open a cart. The id it returns is an unguessable token, and possessing it is
+# the whole authorisation — there is no account.
+# @name createCart
+POST {{host}}/api/carts
+Content-Type: application/json
+
+{}
+
+###
+@cart = {{createCart.response.body.data.id}}
+
+### Add a variant. The price is recorded now; checkout is what makes a price
+# authoritative, and it refuses rather than silently repricing.
+POST {{host}}/api/carts/{{cart}}/line-items
+Content-Type: application/json
+
+{ "variant_id": 2, "quantity": 2 }
+
+### Read the cart back. Each line carries both the snapshot price and the live
+# one, so a storefront can warn before checkout rather than at it.
+# @name getCart
+GET {{host}}/api/carts/{{cart}}
+
+###
+@line = {{getCart.response.body.data.line_items[0].id}}
+
+### Change a quantity. Zero removes the line.
+PATCH {{host}}/api/carts/{{cart}}/line-items/{{line}}
+Content-Type: application/json
+
+{ "quantity": 1 }
+
+### Remove a line
+DELETE {{host}}/api/carts/{{cart}}/line-items/{{line}}
+
+### ────────────────────────────────────────────────── checkout
+
+# Which payment methods this build has installed.
+GET {{host}}/api/checkout
+
+### Check out with cash on delivery.
+#
+# Send an Idempotency-Key. The same key replays the original result instead of
+# creating a second order — which is what a double-tapped button and a retrying
+# mobile network both look like from here.
+# @name checkout
+POST {{host}}/api/checkout/cod
+Content-Type: application/json
+Idempotency-Key: try-it-once
+
+{
+  "cart_id": "{{cart}}",
+  "email": "buyer@example.com",
+  "name": "A Buyer",
+  "phone": "+15551234567",
+  "address": {
+    "line1": "1 High Street",
+    "city": "Town",
+    "state": "CA",
+    "postal_code": "12345",
+    "country": "US"
+  }
+}
+
+###
+@orderId = {{checkout.response.body.data.order.id}}
+@orderNumber = {{checkout.response.body.data.order.number}}
+@accessToken = {{checkout.response.body.data.order.access_token}}
+
+### Send it again with the same key: the same order comes back, and no second
+# order is created.
+POST {{host}}/api/checkout/cod
+Content-Type: application/json
+Idempotency-Key: try-it-once
+
+{
+  "cart_id": "{{cart}}",
+  "email": "buyer@example.com",
+  "name": "A Buyer",
+  "phone": "+15551234567",
+  "address": {
+    "line1": "1 High Street", "city": "Town", "state": "CA",
+    "postal_code": "12345", "country": "US"
+  }
+}
+
+### Guest order lookup. There is no account to log into, so the access token
+# returned at checkout is the credential. A wrong token returns "not found",
+# so this cannot be used to discover which order numbers exist.
+GET {{host}}/api/orders/{{orderNumber}}?token={{accessToken}}
+
+### ────────────────────────────────────────── admin: catalog
+
+GET {{host}}/api/admin/products?status=draft
+Authorization: Bearer {{token}}
+
+### Create a product with options and variants in one call.
+# Two variants may not claim the same option combination — a unique index
+# enforces that, not the service.
+# @name createProduct
+POST {{host}}/api/admin/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Canvas tote",
+  "status": "active",
+  "description": "Roomy enough for a laptop.",
+  "options": [{ "name": "Colour", "values": ["Natural", "Navy"] }],
+  "variants": [
+    { "sku": "TOTE-NAT", "price_minor": 1800, "options": ["Natural"], "stock_on_hand": 20 },
+    { "sku": "TOTE-NAV", "price_minor": 1800, "options": ["Navy"],    "stock_on_hand": 15 }
+  ]
+}
+
+###
+@productId = {{createProduct.response.body.data.id}}
+
+### The shorthand for a product with no options: send sku and price_minor and
+# the single default variant is created for you.
+POST {{host}}/api/admin/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Sticker pack", "status": "active",
+  "sku": "STICKER-01", "price_minor": 400, "stock": 100
+}
+
+### Update a product. An omitted field is left alone — which is what
+# distinguishes "not mentioned" from "set to empty".
+PATCH {{host}}/api/admin/products/{{productId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "status": "active", "description": "Roomy enough for a 16-inch laptop." }
+
+### Add an option axis to an existing product
+POST {{host}}/api/admin/products/{{productId}}/options
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Size", "values": ["Regular", "Large"] }
+
+### Add a variant
+POST {{host}}/api/admin/products/{{productId}}/variants
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "sku": "TOTE-NAT-L", "price_minor": 2200, "options": ["Natural", "Large"], "stock_on_hand": 5 }
+
+### ──────────────────────────────────────── admin: inventory
+
+# Receive stock: move the count by a delta.
+POST {{host}}/api/admin/variants/1/inventory
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "adjust": 25 }
+
+### A stock take: replace the count. Neither form may leave on-hand below what
+# is already reserved for orders in flight.
+POST {{host}}/api/admin/variants/1/inventory
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "set": 40 }
+
+### What needs reordering
+GET {{host}}/api/admin/inventory/low-stock?threshold=5
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────── admin: orders
+
+GET {{host}}/api/admin/orders?limit=20
+Authorization: Bearer {{token}}
+
+### Filter
+GET {{host}}/api/admin/orders?status=confirmed&payment_status=pending
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/admin/orders/{{orderId}}
+Authorization: Bearer {{token}}
+
+### Record payment. This is how cash on delivery is settled, and the same call
+# a gateway module makes from its webhook. It also confirms a pending order —
+# without that, a paid order would wait forever for a step nobody performs.
+POST {{host}}/api/admin/orders/{{orderId}}/mark-paid
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "reference": "collected in cash" }
+
+### Ship it. With the built-in manual provider an operator types the tracking
+# number; a carrier module reads "meta" for its own options.
+POST {{host}}/api/admin/create-fulfillment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "order_id": {{orderId}}, "provider": "manual", "tracking": "TRACK-0001" }
+
+###
+POST {{host}}/api/admin/orders/{{orderId}}/deliver
+Authorization: Bearer {{token}}
+
+### Cancel and return the stock. Which movement is correct depends on how far
+# the order got, and an order that already shipped cannot be cancelled — that
+# is a return.
+POST {{host}}/api/admin/orders/{{orderId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "reason": "customer changed their mind" }
+
+### Refund. Cash on delivery cannot, and says so plainly rather than
+# pretending — install a gateway module to see this succeed.
+POST {{host}}/api/admin/orders/{{orderId}}/refund
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "amount_minor": 2500 }
+
+### ───────────────────────────────────────────── admin: data
+
+# One row per variant. Cells beginning with = + - or @ are prefixed with an
+# apostrophe, because a spreadsheet executes those on open; import strips one
+# back, so the round trip is lossless.
+GET {{host}}/api/admin/export/admin-products
+Authorization: Bearer {{token}}
+
+### One row per order line, with the order's columns repeated — the shape a
+# pivot table wants.
+GET {{host}}/api/admin/export/admin-orders?from=2026-01-01
+Authorization: Bearer {{token}}
+
+### Import products. Always dry-run first: it validates the whole file and
+# rolls back, reporting what it would have done.
+POST {{host}}/api/admin/import/products?dry_run=1
+Authorization: Bearer {{token}}
+Content-Type: text/csv
+
+product_slug,product_title,product_status,sku,variant_options,price_minor,stock_on_hand,active
+imported-hat,Wool hat,active,HAT-S,Size=S,3200,10,true
+imported-hat,Wool hat,active,HAT-M,Size=M,3200,12,true
+
+### Drop dry_run=1 to actually apply it.
+POST {{host}}/api/admin/import/products
+Authorization: Bearer {{token}}
+Content-Type: text/csv
+
+product_slug,product_title,product_status,sku,variant_options,price_minor,stock_on_hand,active
+imported-hat,Wool hat,active,HAT-S,Size=S,3200,10,true
+imported-hat,Wool hat,active,HAT-M,Size=M,3200,12,true
+
+### Stock in more than one place. `stock_on_hand:<code>` names a location; the
+# bare `stock_on_hand` above still means the default one. A column the file
+# leaves out is a location the file is saying nothing about, so this moves
+# nothing at the warehouse.
+POST {{host}}/api/admin/import/products
+Authorization: Bearer {{token}}
+Content-Type: text/csv
+
+product_slug,product_title,product_status,sku,variant_options,price_minor,stock_on_hand:default,stock_on_hand:shop
+imported-hat,Wool hat,active,HAT-S,Size=S,3200,6,4
+imported-hat,Wool hat,active,HAT-M,Size=M,3200,8,4
+
+### ──────────────────────────────────── things that should fail
+
+# 401: admin routes need the token. Choosing HandleAdmin is the authentication.
+GET {{host}}/api/admin/orders
+
+### 404: a draft product is invisible to shoppers.
+GET {{host}}/api/products/slug/winter-scarf
+
+### 409: TEE-L-WHT is seeded with zero stock, so adding it is refused with the
+# quantity actually available.
+POST {{host}}/api/carts/{{cart}}/line-items
+Content-Type: application/json
+
+{ "variant_id": 5, "quantity": 1 }
+
+### 400: unknown fields are rejected, so a typo fails loudly instead of being
+# silently ignored.
+POST {{host}}/api/admin/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "titel": "Typo", "sku": "OOPS-1", "price_minor": 100 }
+
+### 400: the limit is capped at 200.
+GET {{host}}/api/products?limit=500

@@ -1,0 +1,57 @@
+---
+description: GoCommerce architectural guardrails — always apply
+alwaysApply: true
+---
+
+# GoCommerce
+
+A commerce **engine**, not an application: a store is its own Go program that
+composes the engine with modules in `main()`. `PLAN.md` §1 holds the decision
+table (D1–D23) and is the authority; `AGENTS.md` is its operational summary.
+Procedural guides are in `skills/`.
+
+## Non-negotiable
+
+1. **One Go module, one production dependency** (`pgx`). A second is a design
+   decision that belongs in `PLAN.md`.
+2. **`ext/` packages add zero third-party dependencies.** Stripe, SendGrid and
+   Shiprocket are REST over `net/http` with hand-written HMAC. An SDK-needing
+   module ships as its own repository.
+3. **Modules never write core tables.** Every state transition goes through a
+   core service — `app.Pay().MarkPaid(...)`, `app.Order().Cancel(...)`,
+   `app.Stock().Adjust(...)`. Modules own their own `<name>_` tables.
+4. **A state change and its event commit in one transaction** (the outbox).
+   Never write state and emit afterwards.
+5. **Never hold a transaction across network I/O.** Checkout commits, *then*
+   calls the gateway; the retry path is an idempotency key.
+6. **Money is integer minor units + a currency code.** Columns are `*_minor`,
+   never `*_cents`. The API returns `{amount_minor, currency}`, never a
+   formatted string. No floats.
+7. **Migrations are forward-only and append-only.** A shipped migration is
+   frozen; a correction is a new one.
+8. **Guest checkout is permanent** (D22). No `customer_id` in core.
+   `superusers` is an operator table and the commerce path never reads it.
+9. **Module routes are namespace-enforced** to `/x/<name>/` and
+   `/api/admin/x/<name>/`. Choosing `HandleAdmin` *is* the authentication.
+10. **Every response is JSON**, using the envelope and error taxonomy in
+    `httpx.go` — including router 404s and 405s.
+11. **Every served route appears in `openapi.json`.** A test enforces it.
+12. **`admin/src/lib/styles/*.css` are PocketBase's files, verbatim.** Do not
+    hand-edit them. Only `gocommerce.css` and `fonts-inter.css` are ours. Use
+    PocketBase's class vocabulary: `.label` not `.badge`, plain `.btn` is the
+    primary action, `.page-table-wrapper` not `.table-wrapper`, no `.panel`.
+13. **Tests need a real PostgreSQL** (`GOCOMMERCE_TEST_DB`, one schema per
+    test). No mock — correctness lives in `FOR UPDATE SKIP LOCKED`, advisory
+    locks and CHECK constraints.
+
+## Style
+
+Comments explain **why** — a constraint, a trade-off, a bug not visible in the
+surrounding lines. The code already says what it does. Do not narrate.
+
+## Before finishing
+
+`gofmt -l .` (silent), `go vet ./...`, `go test ./... -count=1`,
+`go test -tags no_admin . -count=1`. Any change under `admin/src` also needs
+`.\scripts\build.ps1`, because `admin/build` is committed so `go build` works
+without Node.

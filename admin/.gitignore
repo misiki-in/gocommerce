@@ -1,0 +1,9 @@
+node_modules/
+.svelte-kit/
+.env
+.env.*
+!.env.example
+
+# build/ is deliberately NOT ignored. It is embedded into the Go binary, so
+# committing it is what lets `go build` and `go install` work on a machine with
+# no Node.js — the same trade PocketBase makes for the same reason.

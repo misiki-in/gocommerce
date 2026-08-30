@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GO_VERSION: "1.27.x"
+
+jobs:
+  # The full suite, including every test that needs a real database. Reliability
+  # claims about locking, transactions and the outbox cannot be proven against a
+  # mock, so this job is the one that gates a merge.
+  test:
+    name: test (linux, postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: gocommerce
+          POSTGRES_PASSWORD: gocommerce
+          POSTGRES_DB: gocommerce_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go build ./...
+      - run: go vet ./...
+      - name: go test (race)
+        run: go test ./... -race -count=1
+        env:
+          GOCOMMERCE_TEST_DB: postgres://gocommerce:gocommerce@localhost:5432/gocommerce_test?sslmode=disable
+
+  # Windows is a first-class development platform for this project, so the build
+  # and the pure-logic suite run here too. GitHub's Windows runners cannot host
+  # service containers, so the database-backed tests skip; the Linux job above
+  # is what proves them.
+  test-windows:
+    name: test (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -count=1
+
+      # Prose cannot be compiled, so this is the closest thing: every relative
+      # link resolves, and every route, accessor and service method quoted in
+      # skills/ still exists. It runs on the Windows leg because the script is
+      # PowerShell and that is where it is authored.
+      - name: docs agree with the code
+        shell: pwsh
+        run: ./scripts/check-docs.ps1
+
+  # D23: the engine's dependency discipline, enforced rather than remembered.
+  deps:
+    name: dependency discipline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - name: core depends only on the PostgreSQL driver
+        run: |
+          deps=$(go list -deps ./... \
+            | grep -v '^github.com/misiki/gocommerce' \
+            | grep '\.' | grep '/' \
+            | cut -d/ -f1-3 | sort -u \
+            | grep -v '^golang.org/x/' || true)
+          echo "third-party module paths reached from the engine:"
+          echo "$deps"
+          unexpected=$(echo "$deps" | grep -v '^github.com/jackc/' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::unexpected third-party dependency: $unexpected"
+            exit 1
+          fi
+
+      - name: bundled extensions add no third-party dependencies
+        run: |
+          if [ ! -d ext ]; then
+            echo "no ext/ packages yet — nothing to check"
+            exit 0
+          fi
+          # A package under ext/ may import the standard library and the engine,
+          # nothing else. An extension that needs an SDK belongs in its own
+          # satellite repository.
+          bad=$(go list -f '{{.ImportPath}}{{range .Imports}} {{.}}{{end}}' ./ext/... \
+            | tr ' ' '\n' \
+            | grep '\.' | grep '/' \
+            | grep -v '^github.com/misiki/gocommerce' | sort -u || true)
+          if [ -n "$bad" ]; then
+            echo "::error::ext/ packages must not import third-party code:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "ext/ is clean"

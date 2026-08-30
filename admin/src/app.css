@@ -1,0 +1,32 @@
+/*
+ * PocketBase's stylesheets, verbatim, in PocketBase's own import order
+ * (ui/src/css/_main.css). Do not hand-edit these files — to pull an upstream
+ * change, re-copy from the PocketBase checkout so they stay diffable.
+ *
+ * Dropped from the upstream list: prism.css (no syntax highlighting here) and
+ * everything after _main.css's divider, which styles PocketBase's own screens
+ * (collections, logs, ERD, rule fields) that gocommerce has no equivalent of.
+ *
+ * gocommerce.css is the only file we author, and only for screens PocketBase
+ * has no counterpart to.
+ */
+@import "./lib/styles/fonts.css";
+@import "./lib/styles/fonts-inter.css";
+@import "./lib/remixicon.css";
+@import "./lib/styles/vars.css";
+@import "./lib/styles/animations.css";
+@import "./lib/styles/base.css";
+@import "./lib/styles/tooltip.css";
+@import "./lib/styles/toast.css";
+@import "./lib/styles/list.css";
+@import "./lib/styles/grid.css";
+@import "./lib/styles/table.css";
+@import "./lib/styles/form.css";
+@import "./lib/styles/dropdown.css";
+@import "./lib/styles/accordion.css";
+@import "./lib/styles/bulkbar.css";
+@import "./lib/styles/tabs.css";
+@import "./lib/styles/modal.css";
+@import "./lib/styles/layout.css";
+
+@import "./lib/styles/gocommerce.css";

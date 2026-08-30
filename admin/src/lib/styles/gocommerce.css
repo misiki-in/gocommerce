@@ -1,0 +1,3401 @@
+/*
+ * The only stylesheet in this panel that is ours.
+ *
+ * Everything before it in app.css is PocketBase's, copied verbatim. This file
+ * covers the screens PocketBase has no counterpart to — a commerce dashboard,
+ * money columns, order state — and it is built strictly from PocketBase's own
+ * tokens, so nothing here introduces a colour, a radius or a duration that the
+ * rest of the panel does not already use.
+ *
+ * If something can be expressed with an existing PocketBase class, it belongs
+ * in the markup, not here.
+ */
+
+/* ------------------------------------------------------------------ accent */
+
+/*
+ * Olive, replacing PocketBase's blue.
+ *
+ * This is not a colour swap. PocketBase's accent is dark enough to carry white
+ * text, so `vars.css` hardcodes `#fff` for everything sitting on it — the
+ * header bar, its links, its focus rings. White on #89a24c is about 2.9:1,
+ * below the 4.5:1 floor, so the accent's *foreground* has to invert with it.
+ * That is what the rest of this block does.
+ *
+ * The near-blacks below are tinted toward the accent rather than reusing
+ * PocketBase's neutral #25272d: an olive bar wants an olive shadow, and the
+ * neutral reads faintly blue against it.
+ */
+:root {
+    --accentColor: #89a24c;
+    --accentTxtColor: #1e2416;
+    /*
+     * vars.css derives the hint step by fading the text toward transparent,
+     * which works on a light accent and fails on a mid-tone one — 40% of this
+     * text over this green lands around 2.6:1, and the idle nav items become
+     * decoration. Naming an explicit colour keeps that step legible instead.
+     */
+    --accentTxtHintColor: #2b3320;
+}
+
+html .accent-surface {
+    --surfaceTxtColor: #1e2416;
+    --surfaceTxtHintColor: #2b3320;
+    /* The focus ring is otherwise a lightened tint of the surface, which on a
+       green bar is more green and vanishes. Focus has to stay visible. */
+    --selectionColor: #1e2416;
+}
+
+/*
+ * `.txt-accent` puts the accent on a page surface rather than under it, where
+ * the contrast problem runs the other way: #89a24c on white is 2.9:1 — a
+ * colour you can see but not read. Light mode gets a deepened moss; dark mode
+ * can use the accent itself, which is already 6:1 against #1c1c1c.
+ */
+.txt-accent {
+    color: #5c6d33 !important;
+}
+[data-color-scheme="dark"] .txt-accent {
+    color: var(--accentColor) !important;
+}
+
+/* -------------------------------------------------------------- typography */
+
+/*
+ * Inter for text, PocketBase's IBM Plex Mono kept for code.
+ *
+ * Mono is not an oversight: SKUs, order numbers and JSON have to align in a
+ * column, and no proportional face does that.
+ *
+ * The selector list is PocketBase's, and it has to be: `vars.css` declares the
+ * whole token block on `:root, .dropdown, .base-surface`, so a dropdown carries
+ * its own copy of every variable rather than inheriting one. Overriding `:root`
+ * alone leaves every menu and every base surface still asking for IBM Plex Sans
+ * — a font this panel no longer ships, so each one made a 404 request and then
+ * rendered in the fallback while the page around it was Inter.
+ */
+:root,
+.dropdown,
+.base-surface {
+    --baseFontFamily: "Inter", system-ui, sans-serif, emoji;
+}
+
+/*
+ * base.css adds `letter-spacing: 0.004em`, and its own comment says why: it
+ * normalises *IBM Plex Sans* between Chrome and Firefox. Inter ships with its
+ * own metrics and needs no such correction — leaving the tracking in makes it
+ * read loose.
+ */
+html,
+body {
+    letter-spacing: normal;
+}
+
+/* ----------------------------------------------------------------- fields */
+
+/*
+ * The one place this panel deliberately departs from PocketBase's palette.
+ *
+ * PocketBase fills an input with --surfaceAlt2Color (#e4e8ec), which reads as
+ * a lot of grey on a page that is mostly white. These move the resting fill
+ * one step closer to the surface and hand the old resting colour to the focus
+ * state — so the field is quieter at rest while focus still darkens it by a
+ * full, visible step, which is the whole point of the borderless treatment.
+ *
+ * Overriding the two tokens rather than the rules keeps it working everywhere:
+ * error fields, addons, searchbars and the autofill inset shadow all derive
+ * from these, and none of them needed touching.
+ *
+ * Same selector list as the typography override above, and for the same
+ * reason: a dropdown holds its own copy of these, so a field inside one — the
+ * filter box in a select — would otherwise keep PocketBase's darker fill.
+ */
+:root,
+.dropdown,
+.base-surface {
+    --inputColor: color-mix(in srgb, var(--surfaceAlt2Color), var(--surfaceColor) 65%);
+    --inputFocusColor: color-mix(in srgb, var(--surfaceAlt2Color), var(--surfaceColor) 15%);
+}
+[data-color-scheme="dark"],
+[data-color-scheme="dark"] .dropdown {
+    /* Same move, mirrored: toward the surface, not toward white. Lightening a
+       dark field would make it louder, which is the opposite of the ask. */
+    --inputColor: color-mix(in srgb, var(--surfaceAlt3Color), var(--surfaceColor) 55%);
+    --inputFocusColor: color-mix(in srgb, var(--surfaceAlt3Color), var(--surfaceColor) 10%);
+}
+
+/*
+ * Rounder text boxes.
+ *
+ * PocketBase points --inputBorderRadius at --borderRadius, so a field corners
+ * as tightly as a button does. A borderless field is read by its fill, and 5px
+ * on a shape that has no outline barely registers as a corner at all — 8px
+ * gives it one. Re-pointing the token rather than the rules keeps every part
+ * that has to agree with it in agreement: `.field` children inherit the radius
+ * for addons and prefixes, and the searchbar's own 30px pill still wins,
+ * because it sets the same token further down.
+ */
+:root {
+    --inputBorderRadius: 8px;
+}
+
+/* ------------------------------------------------------------ page ground */
+
+/*
+ * The page sits on a light grey rather than on white.
+ *
+ * PocketBase paints `.page` with --surfaceColor, the same white it gives every
+ * card, table and dropdown — which is right for its own layout, where a dark
+ * sidebar separates the two. This panel puts its navigation in the header, so
+ * nothing separated them and the whole window was one flat white.
+ *
+ * A token rather than a rule on `.page`: the ground is a thing other rules ask
+ * about (the save bar and the sticky table head both need to know what they are
+ * sitting on), and dark mode has an answer of its own — #1c1c1c is already a
+ * ground, and putting a grey behind it would only mute it.
+ */
+:root {
+    --pageColor: #f1f1f1;
+}
+[data-color-scheme="dark"] {
+    --pageColor: var(--surfaceColor);
+}
+.page {
+    background: var(--pageColor);
+}
+
+/*
+ * --cardFace is the other half of the pair: the surface anything sitting *on*
+ * that ground is painted with. Every raised thing in the panel wants it — a
+ * card in the product editor, a listing table, a card in the order drawer —
+ * and it had been defined three times under three names, once scoped so
+ * narrowly that the drawer could not reach it and its cards came out the exact
+ * colour of the ground in dark mode.
+ *
+ * Dark inverts which of the pair is recessed: the page surface is already the
+ * darkest step there, so the face lifts *above* the ground rather than sitting
+ * on a tint of it.
+ */
+:root {
+    --cardFace: var(--surfaceColor);
+}
+[data-color-scheme="dark"] {
+    --cardFace: var(--surfaceAlt1Color);
+}
+
+/* ---------------------------------------------------------------- menus */
+
+/*
+ * Dropdowns open instantly — measured at ~7ms from click to `:popover-open` —
+ * but PocketBase's transition uses the browser default easing, `ease`, which
+ * front-loads its slowness: a 150ms fade is still only 11% opaque at 26ms.
+ * That reads as a delay before the menu appears, even though nothing is
+ * actually waiting.
+ *
+ * `ease-out` inverts the curve so the panel is legible almost immediately and
+ * merely settles for the rest of the duration, and 120ms is a touch shorter
+ * than the general animation speed because a menu is a direct response to a
+ * click rather than an ambient transition.
+ *
+ * Only the duration and the curve are overridden. Re-declaring the
+ * `transition` shorthand would drop `allow-discrete`, and the popover would
+ * stop animating in at all — it needs the discrete `display` transition to
+ * have anything to fade during.
+ */
+.dropdown[popover] {
+    transition-duration: 120ms;
+    transition-timing-function: ease-out;
+}
+
+/* ------------------------------------------------- page transitions */
+
+/*
+ * Route changes animate the *content*, not the shell.
+ *
+ * Animating `.page` would be the obvious thing and it looks wrong: moving
+ * between Settings and Superusers re-mounts an identical sidebar, so the
+ * sidebar would visibly flicker while the only thing that actually changed sat
+ * still. Animating `.page-content` moves exactly what differs.
+ *
+ * The motion is PocketBase's own `slideTop` keyframe at its own
+ * `--animationSpeed` — 3px and a fade over 150ms. Anything longer stops
+ * reading as responsiveness and starts reading as lag, because this fires on
+ * every single navigation.
+ *
+ * `.page > .wrapper` is the login, which has no `.page-content` of its own.
+ */
+.page-content,
+.page > .wrapper {
+    animation: slideTop var(--animationSpeed) ease-out;
+}
+
+/*
+ * The row fade covers the skeleton-to-data swap, which is otherwise an abrupt
+ * pop. It doubles as the reveal for rows appended by "Load more", where a
+ * staggered entrance would be wrong — they arrive at once, so they appear at
+ * once.
+ */
+tbody tr {
+    animation: fadeIn var(--animationSpeed);
+}
+
+/*
+ * PocketBase's stylesheets carry no reduced-motion handling at all, so this is
+ * ours: honour the preference for the motion we introduced, and for the parts
+ * of PocketBase's that actually travel. The loader keeps spinning — a frozen
+ * spinner reads as a hung page, which is worse than the movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .page-content,
+    .page > .wrapper,
+    tbody tr,
+    .save-bar,
+    .toast,
+    .modal {
+        animation: none;
+    }
+    .modal {
+        transition-duration: 1ms;
+    }
+}
+
+/* ------------------------------------------------------------------ cards */
+
+.stat-card {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    height: 100%;
+    padding: var(--smSpacing);
+    border-radius: var(--borderRadius);
+    background: var(--surfaceAlt1Color);
+    border: 1px solid var(--surfaceAlt2Color);
+    transition: background var(--animationSpeed);
+}
+a.stat-card {
+    text-decoration: none;
+    color: inherit;
+}
+a.stat-card:hover,
+a.stat-card:focus-visible {
+    background: var(--surfaceAlt2Color);
+    text-decoration: none;
+}
+
+.stat-card .stat-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--smFontSize);
+    font-weight: bold;
+    color: var(--surfaceTxtHintColor);
+}
+
+.stat-card .stat-value {
+    font-size: 26px;
+    line-height: 1.2;
+    font-weight: normal;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-card .stat-hint {
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    color: var(--surfaceTxtDisabledColor);
+}
+
+/* -------------------------------------------------------- section heading */
+
+/* PocketBase's own section rhythm: a hinted, bold caption with a rule that
+   fills the remaining width. */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--smSpacing);
+    margin: var(--spacing) 0 var(--smSpacing);
+    font-size: var(--fontSize);
+    font-weight: bold;
+    color: var(--surfaceTxtHintColor);
+}
+.section-title::after {
+    content: "";
+    flex-grow: 1;
+    height: 1px;
+    background: var(--surfaceAlt2Color);
+}
+.section-title > .btn,
+.section-title > a {
+    flex-shrink: 0;
+}
+
+/* ----------------------------------------------------------------- selects */
+
+/*
+ * Selects are Select.svelte, which emits PocketBase's own `.input.select`
+ * markup, so form.css styles them and nothing is needed here — including the
+ * chevron, which is the icon font via `.selected-container::after`.
+ *
+ * The one addition: a select used as a page-header filter has no label above
+ * it, so its `.field` would collapse to the height of the control alone and
+ * sit shorter than the searchbar beside it.
+ */
+.page-header .field:has(> .input.select) {
+    min-height: var(--btnHeight);
+    justify-content: center;
+}
+.page-header .input.select {
+    min-width: 150px;
+}
+
+/* ---------------------------------------------------------- footer toggle */
+
+/*
+ * The theme switch lives in the page footer rather than the header, and parks
+ * on the right so it never competes with the count each page reports on the
+ * left. `.page-footer` is already a flex row, so this is only about which end.
+ */
+.page-footer .theme-toggle {
+    margin-left: auto;
+}
+
+/* --------------------------------------------------------------- row meta */
+
+/*
+ * PocketBase's `.col-meta` holds one thing — the row chevron — so
+ * `vertical-align: top` on it reads fine. Ours also carries row actions, and a
+ * top-aligned chevron beside an `inline-flex` button sits visibly high,
+ * especially on rows tall enough to wrap.
+ *
+ * Aligning both on their centres is what makes the column read as one line.
+ */
+/*
+ * Two rules, because the chevron is misaligned twice over.
+ *
+ * The `<i>` itself: table.css sets `vertical-align: top` from a nested selector
+ * that resolves to `table :is(td, th).col-meta > i` — specificity (0,1,3), so
+ * a plain `td.col-meta > i` loses to it. The `table` prefix here is what makes
+ * this win, not decoration. `line-height: 1` then shrinks the box from the
+ * cell's 22px to the glyph's own height, so "centred" means centred on the
+ * glyph rather than on a tall empty box.
+ *
+ * And the glyph inside it: base.css puts `vertical-align: top` on every icon's
+ * `::before`, so aligning the element alone still leaves the ink at the top of
+ * it.
+ *
+ * PocketBase needs neither, because its `.col-meta` holds one lone chevron in a
+ * cell with asymmetric padding tuned for exactly that. Ours sits beside a
+ * button.
+ */
+table td.col-meta > i {
+    vertical-align: middle;
+    line-height: 1;
+}
+table td.col-meta > i::before {
+    vertical-align: middle;
+}
+td.col-meta > .btn {
+    vertical-align: middle;
+}
+
+/* ------------------------------------------------------------------ money */
+
+/* Money and quantities line up on the decimal point, always. A column of
+   figures that does not align is a column you have to read twice. */
+.txt-money,
+td.col-field-type-number,
+th.col-field-type-number {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+/* ...but not once a row has become a card. Below 600px PocketBase's
+   responsive-table stacks every cell under its own label, and a figure pushed
+   to the right edge there is just orphaned from the label naming it. */
+@media (max-width: 600px) {
+    .responsive-table td.col-field-type-number,
+    .responsive-table th.col-field-type-number {
+        text-align: left;
+    }
+}
+
+/* Stock figures reuse PocketBase's own txt-danger / txt-warning / txt-hint;
+   see stockClass() in format.js. Nothing extra is needed for them here. */
+
+/* -------------------------------------------------------------- rich text */
+
+/*
+ * RichText.svelte is a `contenteditable`, so none of form.css's input rules
+ * reach it — it is not an <input>, a <textarea> or an `.input`. What follows
+ * rebuilds the field it should look like out of the two tokens the fields
+ * section above already redefines, so it moves with them and introduces no
+ * fill of its own.
+ *
+ * Dropped inside a `.field` with a label, the two fills are the same colour
+ * at rest and the same colour on focus, so there is no seam to see — the
+ * editor sits in a form exactly where a <textarea> used to.
+ */
+.rich-text {
+    display: block;
+    width: 100%;
+    border-radius: var(--inputBorderRadius);
+    background: var(--inputColor);
+    transition: background var(--animationSpeed);
+}
+.rich-text:focus-within {
+    background: var(--inputFocusColor);
+}
+
+.rich-text-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 5px;
+    border-bottom: 1px solid var(--surfaceAlt2Color);
+}
+
+/* Twelve icon buttons at `.btn.sm`'s 12px of side padding overflow the drawer
+   the editor lives in. The icon is the label here, so that padding is doing
+   nothing except pushing the last button onto a second row. */
+.rich-text-toolbar .btn {
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+/* A toolbar that does not show what is already on is a toolbar you have to
+   test by typing. `.transparent.secondary` idles at the hint colour, so an
+   active format takes the full text colour and a fill one step past hover. */
+.rich-text-toolbar .btn[aria-pressed="true"] {
+    color: var(--surfaceTxtColor);
+    background: var(--surfaceAlt3Color);
+}
+
+.rich-text-divider {
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 4px;
+    background: var(--surfaceAlt2Color);
+}
+
+.rich-text-link {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px;
+    border-bottom: 1px solid var(--surfaceAlt2Color);
+}
+/* The URL field sits on the editor's own fill, so at `--inputColor` it would
+   be invisible and at `--inputFocusColor` — where focus-within puts it, and
+   it is always focused while it is open — it would be the same colour as the
+   editor around it. The surface is the only step left. */
+.rich-text-link .field,
+.rich-text-link .field:focus-within {
+    background: var(--surfaceColor);
+}
+
+.rich-text-body {
+    display: block;
+    outline: 0;
+    overflow: auto;
+    min-height: 120px;
+    max-height: 350px;
+    padding: 8px var(--inputPadding) 9px;
+    line-height: 1.5;
+    scrollbar-width: thin;
+    color: var(--surfaceTxtColor);
+    font-size: var(--fontSize);
+}
+
+/* The placeholder is drawn, never inserted: text put into the element would
+   be text in the value. This is PocketBase's own trick, from
+   `.input.code-editor .editor-content`. */
+.rich-text-body:empty::before {
+    content: attr(data-placeholder);
+    color: var(--surfaceTxtDisabledColor);
+}
+
+/* Headings inside a form field, not on a page: base.css sets h2 at 24px,
+   which in a 14px field reads as a second document. These keep the hierarchy
+   legible without the field shouting. base.css also sets headings to normal
+   weight, which is right for a page title and wrong for a heading whose whole
+   job is to look like one. */
+.rich-text-body h2 {
+    margin: 14px 0 6px;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: bold;
+}
+.rich-text-body h3 {
+    margin: 12px 0 6px;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: bold;
+}
+.rich-text-body > :first-child {
+    margin-top: 0;
+}
+.rich-text-body > :last-child {
+    margin-bottom: 0;
+}
+
+/* Underlined rather than coloured: the accent is 2.9:1 on white — see the
+   `.txt-accent` note at the top of this file — and a link inside an editor
+   only has to be recognisable, not branded. */
+.rich-text-body a {
+    text-decoration: underline;
+}
+
+.rich-text.disabled .rich-text-body {
+    color: var(--surfaceTxtDisabledColor);
+}
+
+/* --------------------------------------------------------------- save bar */
+
+/*
+ * SaveBar.svelte, fixed across the top of the window, over the app header.
+ *
+ * A centred pill rather than a full-width strip, which is Shopify's shape: its
+ * save bar sits in the middle of the top bar and covers it, so it reads as one
+ * object about the form below rather than as a system banner across the whole
+ * app. The radius follows from that — a square-cornered strip inset from both
+ * sides looks unfinished; a pill looks deliberate.
+ *
+ * Shopify puts the bar in the global header's markup, in the slot its search
+ * field normally occupies, which means the shell owns it and every page has to
+ * report its dirty state upward. Here it only *sits* there: the element stays
+ * inside the page that owns the form, and `position: fixed` puts it over the
+ * header without the shell knowing anything about it. So a page keeps its own
+ * save state and the header stays PocketBase's.
+ *
+ * The surface tokens are re-pointed at the primary near-black instead of each
+ * button being recoloured — the move `.accent-surface` makes in vars.css for
+ * the header, for the same reason. `.btn.transparent` then has a dark ground
+ * to be transparent against, and its hover, focus and disabled states follow
+ * without any of them being restated here. Save is `.btn.secondary` because a
+ * plain `.btn` is `--primaryColor`, which is the bar itself.
+ *
+ * z-index 11 is the bulkbar's: over the header, the sticky table header (3)
+ * and the page footer (10), under the modal layer at 1000 — a drawer opened
+ * from the page has to cover it. Popovers are in the top layer and so are
+ * unaffected; the account dropdown still opens over the bar.
+ */
+.save-bar {
+    --surfaceColor: var(--primaryColor);
+    --surfaceAlt1Color: var(--primaryAlt1Color);
+    --surfaceAlt2Color: var(--primaryAlt2Color);
+    --surfaceAlt3Color: var(--primaryAlt2Color);
+    --surfaceAlt4Color: var(--primaryAlt2Color);
+    --surfaceAlt5Color: var(--primaryAlt2Color);
+    --surfaceTxtColor: var(--primaryTxtColor);
+    --surfaceTxtHintColor: var(--primaryTxtHintColor);
+    --surfaceTxtDisabledColor: var(--primaryTxtDisabledColor);
+
+    /*
+     * Shopify's save bar is deliberately short — it is a status strip, not a
+     * dialog — and here it has to fit inside the header it covers. Re-pointing
+     * --smBtnHeight rather than sizing the buttons directly is what lets them
+     * stay ordinary `.btn.sm`s: the class already reads this token, so nothing
+     * here has to fight its padding or line-height.
+     */
+    --smBtnHeight: 26px;
+
+    position: fixed;
+    /*
+     * `.app-header` measures 38px, so a 32px bar 3px down from the viewport's
+     * top edge sits inside it with the same 3px above and below. It covers
+     * the nav rather than moving it: the header is in flow and the bar is
+     * not, so nothing under it shifts when it appears.
+     */
+    top: 3px;
+    /*
+     * Both insets zeroed with an auto inline margin is what centres a fixed
+     * element of a known width. Not a translate — `slideTop` below owns
+     * `transform` for the entrance, and the two would overwrite each other.
+     */
+    left: 0;
+    right: 0;
+    z-index: 11;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    /* Tighter on the right: the buttons carry their own padding, and the
+       symmetric version pushes the pill wide enough to wrap on a phone. */
+    padding: 3px 6px 3px var(--smSpacing);
+    width: calc(100% - 2 * var(--smSpacing));
+    max-width: 440px;
+    margin-inline: auto;
+    color: var(--surfaceTxtColor);
+    background: var(--surfaceColor);
+    border-radius: var(--borderRadius);
+    /* No shadow. Near-black against the accent header is already the whole
+       separation, and a drop shadow under it is the part that reads as a
+       banner. */
+    animation: slideTop var(--animationSpeed) ease-out;
+}
+
+/* `display: flex` above is an author rule and `hidden` is a user-agent one,
+   so without this the bar is visible for every value of `hidden`. */
+.save-bar[hidden] {
+    display: none;
+}
+
+/* The label is a caption, not a heading: bold at full size turns a status
+   strip into an alert, which is the one thing this is not. */
+.save-bar-message {
+    margin-right: auto;
+    font-size: var(--smFontSize);
+    font-weight: 600;
+}
+
+/* `.transparent` takes its hover from --surfaceAlt2Color, which the block
+   above re-points to the primary ramp — so Discard already lands correctly on
+   the dark bar and only its resting weight needs toning down. */
+.save-bar .btn.transparent {
+    color: var(--surfaceTxtHintColor);
+}
+.save-bar .btn.transparent:hover,
+.save-bar .btn.transparent:focus-visible {
+    color: var(--surfaceTxtColor);
+}
+
+/* -------------------------------------------------- product editor columns */
+
+/*
+ * The product editor is PocketBase's `.grid` with a `.col-lg-8` main column and
+ * a `.col-lg-4` rail. Only the breakpoint moves.
+ *
+ * `grid.css` splits `.col-lg-*` at 650px of *container* width, which here would
+ * put the rail at 216px — narrower than the collections select, the status
+ * select and the tag chips it has to hold, so both columns become unusable at
+ * exactly the width the split begins. 900px keeps the rail at ~290px, which is
+ * the width those controls actually need.
+ *
+ * The query is unnamed, so it resolves against the nearest container ancestor
+ * of the subject: the `.grid` itself, which is where `container-type` lives.
+ */
+@container (width < 900px) {
+    .grid.product-columns > [class^="col-"] {
+        width: calc(100% - var(--gridGap));
+    }
+}
+
+/* -------------------------------------------------------------- tag tokens */
+
+/*
+ * Tags are `.label` chips with a remove control in them. `.btn.circle.sm` is
+ * 35px tall and the chip's own line box is 20 — dropped in unchanged the button
+ * sets the chip's height and the row reads as a stack of buttons rather than a
+ * set of tags. This is the only property that has to change.
+ */
+.token-list .label > .btn.circle.sm {
+    --circleSize: 18px;
+    margin-right: -2px;
+}
+.token-list .label > .btn.circle.sm i::before {
+    line-height: 18px;
+}
+
+/* --------------------------------------------------------------- media zone */
+
+/*
+ * MediaZone.svelte.
+ *
+ * PocketBase has no file field to borrow: its uploader belongs to the
+ * collection record editor, which this panel does not have. The drop zone and
+ * the tile grid are therefore built here — out of the same surface steps,
+ * radius and animation speed as everything else, and with `.thumb` doing the
+ * work anywhere a tile is small enough for it (the library picker).
+ */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+}
+
+.media-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    aspect-ratio: 1;
+    padding: 5px;
+    text-align: center;
+    color: var(--surfaceTxtHintColor);
+    background: var(--surfaceAlt1Color);
+    border: 1px solid var(--surfaceAlt3Color);
+    border-radius: var(--borderRadius);
+    transition:
+        border-color var(--animationSpeed),
+        opacity var(--animationSpeed);
+}
+.media-tile img,
+.media-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* The tile keeps its slot while it is being dragged and only fades, so the
+   grid does not reflow underneath the pointer mid-gesture — a grid that
+   rearranges as you cross it makes the drop target impossible to aim at. */
+.media-tile[data-dragging="true"] {
+    opacity: 0.35;
+}
+/*
+ * The drop target, drawn as an overlay rather than as a border colour.
+ *
+ * A 1px edge was the whole indicator, and the thumbnail is painted over it —
+ * `overflow: hidden` clips the image to the tile, so the one pixel that was
+ * supposed to say "it lands here" was underneath the picture. Dragging looked
+ * like nothing was happening.
+ *
+ * `::after` sits above the image with a ring and a wash of the accent, so the
+ * target is unmistakable at a glance and at a distance.
+ */
+.media-tile[data-dropinto="true"] {
+    border-color: var(--accentColor);
+}
+.media-tile[data-dropinto="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 2px var(--accentColor);
+    background: color-mix(in srgb, var(--accentColor), transparent 82%);
+    pointer-events: none;
+}
+
+/* The tile being carried fades and shrinks a touch, so the pair reads as "this
+   one is moving to there" rather than as two highlighted tiles. */
+.media-tile[data-dragging="true"] {
+    transform: scale(0.96);
+}
+
+/*
+ * The actions sit over the picture rather than under it: at 110px a row of
+ * buttons below each tile is taller than the thing it belongs to. They are
+ * revealed on hover and on focus — the focus half is what keeps them reachable
+ * from the keyboard, which is also the only way to reorder without a mouse.
+ */
+.media-tile-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    left: 4px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--animationSpeed);
+}
+.media-tile:hover .media-tile-actions,
+.media-tile:focus-within .media-tile-actions {
+    opacity: 1;
+}
+@media (hover: none) {
+    .media-tile-actions {
+        opacity: 1;
+    }
+}
+.media-tile-actions .btn.circle.sm {
+    --circleSize: 26px;
+    background: var(--surfaceColor);
+    box-shadow: var(--boxShadow);
+}
+.media-tile-actions .btn.circle.sm i::before {
+    line-height: 26px;
+}
+.media-tile-actions .btn:last-child {
+    margin-left: auto;
+}
+
+/* Which file a storefront leads with is worth stating outright rather than
+   leaving to be inferred from position. */
+.media-tile-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+}
+
+.media-tile-name {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.media-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: var(--smSpacing);
+    text-align: center;
+    color: var(--surfaceTxtHintColor);
+    border: 1px dashed var(--surfaceAlt4Color);
+    border-radius: var(--borderRadius);
+    transition:
+        background var(--animationSpeed),
+        border-color var(--animationSpeed);
+}
+/* The zone has to say it is a target before the file is let go, or the drop is
+   a guess. */
+.media-dropzone[data-over="true"] {
+    background: var(--surfaceAlt1Color);
+    border-color: var(--accentColor);
+}
+
+/* ----------------------------------------------------- column-bound tables */
+
+/*
+ * `.page-table-wrapper` is PocketBase's scroller for a table, and it is the
+ * wrong one inside the editor's main column: it pins `min-width: 900px` and
+ * bleeds to the page edges with negative margins, both of which are right for a
+ * full-width list screen and wrong for a table that is two thirds of one.
+ *
+ * This scrolls the table in place instead. The minimum is the width at which
+ * the variant matrix's own columns stop colliding, not a page-level figure.
+ */
+.table-scroll {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.table-scroll > table {
+    min-width: 620px;
+}
+
+/* Variants nested under the group they belong to. The indent is what makes one
+   table read as two levels, without a second table inside the first. */
+tr.variant-child > td:first-child {
+    padding-left: calc(max(var(--tableSpacing), 10px) + 22px);
+}
+
+/* ------------------------------------------------------------ seo preview */
+
+/*
+ * The Edit button goes to the far right, where Shopify has it. `.section-title`
+ * renders its rule last, so a button written before it in the markup lands
+ * beside the caption instead; ordering the button after the rule is what moves
+ * it, and leaves every other heading in the panel where it is.
+ */
+.section-title > .seo-edit {
+    order: 1;
+}
+
+/*
+ * How the listing would read in a result page: the url, the link, the sentence
+ * under it, in that order and in a result page's own colours.
+ *
+ * Shopify's version, which is to say no container at all — the preview sits
+ * directly on the card, the same way the fields do. Boxing it was the older
+ * idea here, and on a card that is already a box it read as a second frame
+ * around nothing.
+ *
+ * The title takes `--infoColor` because that is the panel's existing blue and
+ * the point is for the block to read as somebody else's page — using the accent
+ * would make it look like part of the form describing it.
+ */
+.seo-preview {
+    /* A result is about 600px wide, and previewing at the full width of the
+       card would put the truncation somewhere no search engine puts it. Two
+       clamped lines at this width is ~160 characters, which is the meta
+       description limit the fields count against. */
+    max-width: 37rem;
+}
+.seo-preview-url {
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    color: var(--surfaceTxtHintColor);
+    /* One line: a long handle should not wrap the url over three rows and push
+       the title out of the shape a result actually has. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.seo-preview-title {
+    margin: 3px 0;
+    font-size: 18px;
+    line-height: 1.3;
+    color: var(--infoColor);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.seo-preview-description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    color: var(--surfaceTxtHintColor);
+}
+
+/* Before there is anything to preview. It replaces the block rather than
+   sitting above it, because a result page with "Untitled product" in it is a
+   worse answer than saying there is nothing to show yet. */
+.seo-preview-empty {
+    margin: 0;
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    color: var(--surfaceTxtHintColor);
+}
+
+/* The fields are behind the heading's Edit button, so they carry the gap the
+   preview above them no longer needs. */
+.seo-fields {
+    margin-top: var(--smSpacing);
+}
+
+/*
+ * The handle's prefix sits inside the box, before the editable part, so the
+ * two read as one string — the operator owns the handle, not the host.
+ * `.field input` already paints and pads itself; only its left padding gives
+ * way, or the handle would start a full input's width from its own prefix.
+ */
+.seo-handle-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+.seo-handle-prefix {
+    flex: 0 0 auto;
+    padding-left: var(--inputPadding);
+    color: var(--surfaceTxtHintColor);
+    white-space: nowrap;
+}
+.field .seo-handle-row > input {
+    padding-left: 2px;
+}
+
+/* ------------------------------------------------------ text-led selects */
+
+/*
+ * Combobox.svelte and TokenInput.svelte.
+ *
+ * Both are PocketBase's `.input.select` with one part swapped: where its
+ * trigger is a button showing the chosen option, theirs is a text input the
+ * operator types into. Everything else — the chevron, its flip while the
+ * popover is open, the dropdown's focus-coloured border, the disabled
+ * colours — comes from form.css untouched, which is the whole reason for
+ * reusing the shell instead of building a control.
+ *
+ * What form.css has no case for is that swap. `.selected-container` is written
+ * to be the only thing in the row, so it claims the full width; here it is a
+ * chevron standing beside the typing surface. And `.field input` is padded to
+ * be a field on its own, which inside the select's own 5px stacks up to a
+ * control half again too tall.
+ *
+ * The gap goes with it: the input and the chevron each carry `--inputPadding`
+ * already, which is exactly the spacing `.selected-container` has on its own.
+ */
+.input.select.combobox,
+.input.select.token-input {
+    gap: 0;
+}
+.input.select > .combobox-input,
+.input.select > .token-input-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 1px var(--inputPadding);
+}
+.input.select > .selected-container.combobox-toggle {
+    flex: 0 0 auto;
+    width: auto;
+    padding-left: 0;
+}
+
+/*
+ * Tag chips sit inside the control rather than under it, so the box reads as
+ * the whole answer rather than as a box with a footnote. `.token-list` is
+ * carried alongside for its chip-button sizing — see the tag tokens block
+ * above, which is the same chip in the same size.
+ */
+.token-input-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+}
+/* The typing surface takes what the chips leave, down to the width of about
+   four characters, and only then wraps onto a line of its own. */
+.input.select > .token-input-field > input {
+    width: auto;
+    flex: 1 1 60px;
+    min-width: 60px;
+    padding: 0;
+}
+
+/* ------------------------------------------------------------ category tree */
+
+/*
+ * The tree's indent, as an element rather than as padding.
+ *
+ * Both places it appears — the picker's `.dropdown-item` and the categories
+ * table's first cell — already own their horizontal padding, so shifting the
+ * row itself would mean a rule per depth in two different contexts. A spacer
+ * with the depth as a custom property is one rule that works in both, and it
+ * collapses to nothing at depth 0 without a special case.
+ *
+ * 16px per level is the width of the guide below plus the space to read it;
+ * anything tighter and three levels stop being distinguishable at a glance.
+ */
+.category-indent {
+    display: inline-block;
+    flex-shrink: 0;
+    width: calc(var(--depth, 0) * 16px);
+    /* The guide below is inline content of this box, so without this it sits
+       at the spacer's *left* edge and every depth's tick lands in the same
+       column — the indent grows while the mark that explains it does not. */
+    text-align: right;
+}
+
+/* The guide line. It marks that a row is nested at all — the indent alone
+   reads as an accident on a row whose parent has scrolled out of view — and
+   `.nested` is set from the markup rather than matched out of the style
+   attribute, which would break the first time the value is formatted
+   differently. */
+.category-indent.nested::after {
+    content: "";
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    vertical-align: -0.2em;
+    /* The gap between the tick and the title lives here rather than on the
+       row, because a row gap would also push the depth-0 rows — which have no
+       spacer at all — out of line with the "Uncategorised" one above them. */
+    margin-right: 7px;
+    background: var(--surfaceAlt3Color);
+}
+
+/* ---------------------------------------------------- media library picker */
+
+/*
+ * Shopify's split button: a label that does the common thing and a caret that
+ * opens the rarer one, joined into a single control.
+ *
+ * PocketBase has no grouped-button vocabulary, so the seam is made here — the
+ * two halves keep their own `.btn.sm.secondary` and only give up the radius on
+ * the edges that meet, plus a hairline so the pair does not read as one wide
+ * button with a stray chevron.
+ */
+.split-btn {
+    display: inline-flex;
+    align-items: stretch;
+}
+.split-btn > .btn:first-of-type {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.split-btn > .split-btn-toggle {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    /* Against the button beside it, not against the page: the pair sits on the
+       dropzone's fill and a page-coloured rule would read as a gap. */
+    box-shadow: inset 1px 0 0 var(--surfaceAlt3Color);
+}
+
+/*
+ * `.even` is the other kind of pair: two peers, not an action and its caret.
+ *
+ * The rules above give the trailing half a 6px inset, which is right for a
+ * chevron hanging off a labelled button and wrong for two icons that mean
+ * equal and opposite things — it makes the second one visibly narrower than
+ * the first. Here both halves are square against the button height, so the
+ * pair reads as one control with a seam down the middle.
+ */
+.split-btn.even > .btn {
+    width: var(--smBtnHeight);
+    min-width: var(--smBtnHeight);
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+}
+
+/*
+ * The URL popover is a form, not a menu, so it opts out of two things
+ * `.dropdown` assumes. `width: anchor-size(width)` measures the invoker, which
+ * here is a 30px caret; and `overflow: auto` would clip the focus ring on the
+ * input at the panel's edge.
+ */
+.dropdown.add-media-url {
+    width: 300px;
+    max-width: min(300px, 100vw - 20px);
+    max-height: none;
+    overflow: visible;
+    gap: 0;
+    padding: var(--smSpacing);
+}
+.add-media-url-title {
+    margin-bottom: 10px;
+}
+
+/*
+ * A library cell is a thumbnail plus its name and type. The tile keeps its
+ * square aspect ratio and the two lines sit under it, so a long filename
+ * cannot stretch the picture — which is why this wraps `.media-tile` rather
+ * than adding the text inside it.
+ */
+.media-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.media-cell > .media-tile {
+    width: 100%;
+}
+.media-cell-name,
+.media-cell-meta {
+    text-align: center;
+    line-height: var(--smLineHeight);
+}
+
+/*
+ * The selection box, drawn in the corner of a thumbnail the way Shopify's is.
+ *
+ * It is a span rather than an `<input type="checkbox">` on purpose: the tile is
+ * already a button carrying `aria-pressed`, a checkbox nested in a button is
+ * invalid markup that gets announced twice, and `form.css` styles any `.field`
+ * containing a checkbox as though the whole field were one.
+ */
+.media-check {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 14px;
+    color: var(--successTxtColor);
+    background: var(--surfaceColor);
+    border: 1px solid var(--surfaceAlt4Color);
+    border-radius: 3px;
+    transition:
+        background var(--animationSpeed),
+        border-color var(--animationSpeed);
+}
+.media-check[data-checked="true"] {
+    color: var(--successTxtColor);
+    background: var(--successColor);
+    border-color: var(--successColor);
+}
+.media-check i::before {
+    line-height: 1;
+}
+
+/*
+ * The searchbar's magnifier.
+ *
+ * `.field` is display:block and its input is width:100%, so an icon cannot sit
+ * beside the input in flow — as a sibling it stacks above it and doubles the
+ * field's height. It is taken out of flow instead, over the padding the input
+ * already leaves for it (`p-l-30`), and made click-through so the whole field
+ * still focuses the box.
+ */
+.searchbar .field > .searchbar-icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--surfaceTxtHintColor);
+}
+
+/* Search on the left, layout toggle on the right. */
+.media-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.media-toolbar > .searchbar {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/*
+ * The filter row: Shopify's chips. They wrap rather than scroll, because a
+ * horizontal scroller inside a drawer competes with the drawer's own scroll and
+ * the filter you cannot see is the one you forget is on.
+ */
+.media-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+/*
+ * A filter is a `Select` with no label, so it sizes to its content instead of
+ * filling the row — `.input.select` is a block by default, which would put each
+ * one on a line of its own.
+ */
+.media-filters .input.select {
+    width: auto;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.media-filters .input.select .selected-container {
+    min-height: var(--smBtnHeight);
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: var(--smFontSize);
+}
+
+/* The pressed half of the layout toggle. `.btn.secondary` has no selected
+   state of its own — it is a button, not a tab — so the pair needs one. */
+.split-btn > .btn.active {
+    background: var(--surfaceAlt3Color);
+}
+
+/*
+ * List view: one row per file instead of a grid of squares. The thumbnail
+ * shrinks to a fixed 40px and the two text lines move beside it, which is the
+ * only structural change — everything else is the same cell.
+ */
+.media-grid.media-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.media-grid.media-list .media-cell {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 4px;
+    border-radius: var(--borderRadius);
+}
+.media-grid.media-list .media-cell:hover {
+    background: var(--surfaceAlt1Color);
+}
+.media-grid.media-list .media-cell > .media-tile {
+    flex: 0 0 40px;
+    width: 40px;
+}
+.media-grid.media-list .media-cell-name,
+.media-grid.media-list .media-cell-meta {
+    text-align: left;
+}
+/* The name takes the row and the type sits at its end, so the two never
+   collide on a long filename. */
+.media-grid.media-list .media-cell-name {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.media-grid.media-list .media-cell-meta {
+    flex: 0 0 auto;
+}
+/* At 40px the corner box would cover most of the picture. */
+.media-grid.media-list .media-check {
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    font-size: 11px;
+}
+
+/* --------------------------------------------------------------- metafields */
+
+/*
+ * A metafield is a name and a value on one row, with a remove control.
+ *
+ * `.fields` would be the obvious PocketBase class and it is wrong here: it
+ * splits its children evenly, and a value is worth more width than a name. The
+ * grid gives the name a third and lets the value take the rest, with the button
+ * sized to itself.
+ */
+.metafields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.metafield-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+/* Below the editor's own column split there is not room for three across, and
+   a 90px value box is worse than a second line. */
+@container (width < 560px) {
+    .metafield-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .metafield-row > .field:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ================================================== compact product editor */
+
+/*
+ * Shopify's density, PocketBase's design.
+ *
+ * What is borrowed from Shopify is the *shape* of the screen: sections are
+ * cards on a recessed ground, the rhythm between them is 16px rather than 30,
+ * and a control is 32px rather than 45. The ground is Shopify's own #f1f1f1 —
+ * the one colour borrowed outright, because the recess is the whole effect and
+ * PocketBase's tint of it sat too close to the cards on top. The rest of the
+ * visual language is not borrowed: no Polaris shadow, no hairline-outlined
+ * field with the label floating above it. Every other colour, radius and
+ * shadow below is a PocketBase token, so this reads as the same panel, tighter.
+ *
+ * Almost all of it is done by re-pointing tokens rather than by writing rules.
+ * PocketBase sizes everything from --btnHeight, --fontSize, --spacing and
+ * friends, so moving those moves the buttons, the fields, the selects, the
+ * table rows and the dropdowns together â€” and anything added to this page later
+ * arrives compact without needing a rule of its own.
+ */
+.shopify-skin {
+    /* Sizes: Shopify's. */
+    --fontSize: 13px;
+    --lineHeight: 20px;
+    --smFontSize: 12px;
+    --smLineHeight: 16px;
+    --btnHeight: 32px;
+    --smBtnHeight: 28px;
+    --lgBtnHeight: 36px;
+    --spacing: 16px;
+    --smSpacing: 12px;
+    --inputPadding: 10px;
+
+}
+
+/*
+ * The recessed ground is what makes a card read as a card. `.page-content` is
+ * the scrolling box, so it carries it.
+ */
+.shopify-skin .page-content {
+    background: var(--pageColor);
+}
+
+/* ------------------------------------------------------------------ cards */
+
+/*
+ * `.stat-card` is PocketBase's own card and this is the same recipe â€” surface,
+ * one-step border, --borderRadius â€” pointed at the page's two grounds so the
+ * card is the lighter of the pair in either colour scheme.
+ */
+.shopify-skin .card {
+    display: block;
+    padding: var(--spacing);
+    background: var(--cardFace);
+    border: 1px solid var(--surfaceAlt3Color);
+    border-radius: var(--borderRadius);
+}
+.shopify-skin .card + .card {
+    margin-top: var(--spacing);
+}
+.shopify-skin .grid.product-columns {
+    --gridGap: var(--spacing);
+}
+
+/*
+ * The section heading keeps PocketBase's caption treatment â€” hinted, bold,
+ * uppercase-ish small â€” but drops the rule that fills the rest of the row. The
+ * card's own edge already separates the sections, and two separators doing one
+ * job is what makes a dense page look noisy.
+ */
+/*
+ * Only the first heading in a card loses its top margin — the card's padding
+ * already supplies that space. A heading further down is separating two
+ * sub-sections inside one card (Options from Variants), and it keeps both its
+ * margin and PocketBase's rule, which is the thing actually doing the
+ * separating there.
+ *
+ * The rule is also the flex spacer that pushes a heading's action button to the
+ * right-hand end. Hiding it collapses "Variants" and "Add variant" against each
+ * other, which is a good reminder that it is load-bearing, not decoration.
+ */
+.shopify-skin .card > .section-title:first-child {
+    margin-top: 0;
+}
+
+/* PocketBase's page header sits on the surface; here that surface is the
+   recessed ground, so it simply stops painting its own. */
+.shopify-skin .page-header {
+    background: none;
+}
+
+/* ----------------------------------------------------------------- fields */
+
+/*
+ * Nothing here restyles a field â€” the label stays inside the filled box, which
+ * is PocketBase's whole borderless idea. The only change is vertical: its label
+ * row and its input each give back a few pixels, which is where most of the
+ * height of a form this long actually goes.
+ */
+.shopify-skin .field-help {
+    margin-top: 4px;
+}
+
+/*
+ * A `.fields` row is one control, not two boxes on a line.
+ *
+ * PocketBase squares the inner corners of adjacent fields and puts a 1px
+ * delimiter between them, so Weight and Unit read as a single filled shape
+ * split down the middle — the same idiom as SKU and Barcode, or a price and
+ * its Apply button. A gap here breaks the shape rather than spacing it: each
+ * half keeps two flat corners with nothing to meet, and the delimiter is left
+ * floating in the space. The gap is therefore zero on purpose, and this rule
+ * exists to say so rather than to change anything.
+ */
+.shopify-skin .fields {
+    gap: 0;
+}
+
+/* The rich text body no longer needs PocketBase's 200px minimum: at this
+   density it is most of a screen on its own. */
+.shopify-skin .rich-text-body {
+    min-height: 110px;
+}
+
+.shopify-skin .media-dropzone {
+    padding: var(--smSpacing);
+}
+
+/* -------------------------------------------------------- lists and rows */
+
+/*
+ * The option axes and the variant matrix are PocketBase's `.list`. Compacting
+ * them is the single biggest win on this page â€” an axis with five values is
+ * five rows, and every row was 45px of button height plus its own margin.
+ */
+.shopify-skin .card .list {
+    gap: 0;
+    background: none;
+    border: 1px solid var(--surfaceAlt2Color);
+    border-radius: var(--borderRadius);
+    overflow: hidden;
+}
+.shopify-skin .card .list > .list-item {
+    margin: 0;
+    padding: 6px 10px;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 1px solid var(--surfaceAlt2Color);
+}
+.shopify-skin .card .list > .list-item:first-child {
+    border-top: 0;
+}
+
+/*
+ * "Option value 2" and its siblings used to be clipped away as visual noise.
+ * They are not, any more: with floating labels each one reads as the box's own
+ * placeholder while it is empty and rises out of the way once it is filled,
+ * which is what the clipping was working around. One rule fewer, and the
+ * numbers stay visible for everyone rather than only for a screen reader.
+ */
+
+/* Table rows follow the same rhythm. */
+.shopify-skin .card table.table th,
+.shopify-skin .card table.table td {
+    padding: 6px 10px;
+}
+
+/*
+ * The group price and quantity cells are a `.fields` pair: an input plus an
+ * "Apply" addon. `.field` carries `width: 100%`, so as a flex item its basis is
+ * the whole cell and it shrinks to whatever the button leaves — which at this
+ * density is about twenty pixels, a box too narrow to show the number in it.
+ *
+ * Giving the input a real minimum and letting the cell grow to suit fixes the
+ * cause rather than the symptom; the button is content-sized and never wanted
+ * the space it was taking.
+ */
+.shopify-skin .card table.table .fields > .field:not(.addon) {
+    flex: 1 1 auto;
+    min-width: 56px;
+}
+.shopify-skin .card table.table .fields {
+    min-width: 130px;
+}
+
+/* -------------------------------------------------------- variant image */
+
+/*
+ * The image cell in the variant table. It is a button rather than a thumbnail
+ * with a click handler, because choosing a variant's picture has to be reachable
+ * from the keyboard like every other cell in the row.
+ */
+.variant-thumb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    cursor: pointer;
+    color: var(--surfaceTxtHintColor);
+    background: var(--inputColor);
+    border: 1px solid var(--surfaceAlt2Color);
+    border-radius: var(--borderRadius);
+    transition:
+        background var(--animationSpeed),
+        border-color var(--animationSpeed);
+}
+.variant-thumb:hover:not(:disabled),
+.variant-thumb:focus-visible {
+    border-color: var(--accentColor);
+}
+.variant-thumb:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+.variant-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ------------------------------------------------- collection and tag boxes */
+
+/*
+ * Shopify's Collections and Tags boxes: a box of chips, with an ⊕ that adds
+ * one, and an "Add …" empty state that is itself the affordance.
+ *
+ * The ⊕ sits on the label row inside the field rather than above it, because
+ * this panel keeps PocketBase's label-inside-the-box field. `.field` is already
+ * `position: relative`, so it needs nothing else to anchor against.
+ */
+.chip-add {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    cursor: pointer;
+    color: var(--surfaceTxtHintColor);
+    background: none;
+    border: 0;
+    border-radius: var(--borderRadius);
+    transition: color var(--animationSpeed);
+}
+.chip-add:hover,
+.chip-add:focus-visible {
+    color: var(--txtPrimaryColor, var(--surfaceTxtColor));
+}
+.chip-add i {
+    font-size: 15px;
+    line-height: 1;
+}
+
+/* The "Add collections" / "Add tags" line. Hinted rather than full-strength:
+   it is a prompt, not a value, and reads as one at a glance. */
+.chip-empty {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--surfaceTxtHintColor);
+}
+.chip-empty i {
+    font-size: 14px;
+    line-height: 1;
+}
+
+/*
+ * The empty-state chip sits in the flow of the token list, so it starts at that
+ * list's own padding — the same origin as the text in the comboboxes above it,
+ * whose inputs carry the identical padding. It was absolutely positioned when
+ * it was an inline hint, which pinned it to the border edge and put it ten
+ * pixels left of everything else in the card.
+ */
+.token-empty {
+    pointer-events: none;
+}
+
+/*
+ * The chips themselves. `.label` is PocketBase's own chip and already carries
+ * its colour and radius; inside these two boxes it only has to stop looking
+ * like a status badge sitting on a line of its own.
+ */
+.input.select.multiple .selected-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+.input.select.multiple .selected-container > .label {
+    max-width: 100%;
+}
+
+/* Keeps an empty group's label in line with the ones that have a chevron. */
+.expand-spacer {
+    display: inline-block;
+    width: var(--smBtnHeight);
+}
+
+/* ------------------------------------------------------------ money field */
+
+/*
+ * Shopify's price box: the currency sits inside the field, ahead of the number,
+ * so a column of prices reads as money without every cell repeating the code
+ * after the digits.
+ *
+ * The prefix is a real element rather than a `::before`, because it has to be
+ * measured — the input's left padding is what keeps the two from overlapping,
+ * and a pseudo-element cannot report its own width to the box beside it.
+ */
+.money-field {
+    display: flex;
+    align-items: center;
+}
+.money-field > .money-prefix {
+    flex: 0 0 auto;
+    padding-left: var(--inputPadding);
+    font-size: var(--smFontSize);
+    line-height: 1;
+    color: var(--surfaceTxtHintColor);
+    pointer-events: none;
+}
+/*
+ * A real minimum, not `min-width: 0`. These cells carry PocketBase's
+ * `min-width` class, which means "shrink to content" — and a flex child that
+ * may shrink to zero *is* zero content, so the box vanished and left the
+ * currency prefix sitting alone.
+ */
+.money-field > input {
+    flex: 1 1 auto;
+    min-width: 64px;
+    padding-left: 5px;
+    font-variant-numeric: tabular-nums;
+}
+/* The label sits above both, not beside the prefix. */
+.money-field > label {
+    flex: 0 0 100%;
+}
+
+/* The same trap, in the other narrow columns of the variant table. */
+.shopify-skin .card table.table td .field > input {
+    min-width: 56px;
+}
+.shopify-skin .card table.table td .field > input.txt-code {
+    min-width: 90px;
+}
+
+/* --------------------------------------------------------- options editor */
+
+/*
+ * Shopify's collapsed option row: a drag handle, the axis name, and its values
+ * as chips. The expanded form is the same row with the editor inside it, which
+ * is why both live on `.list-item` rather than in two different containers —
+ * opening one must not move the rows around it.
+ */
+.option-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.option-row[data-dragging="true"] {
+    opacity: 0.4;
+}
+.option-row[data-dropinto="true"] {
+    box-shadow: inset 0 2px 0 var(--accentColor);
+}
+.option-row:not(.option-open) {
+    cursor: grab;
+}
+.option-row:not(.option-open):active {
+    cursor: grabbing;
+}
+
+.option-handle {
+    flex: 0 0 auto;
+    padding-top: 2px;
+    color: var(--surfaceTxtDisabledColor);
+}
+
+/*
+ * The summary is a button so the whole row opens on click and on Enter, but it
+ * must not look like one — it is a row of the list, and PocketBase's `.btn`
+ * would centre it, bold it and give it a fill.
+ */
+.option-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    background: none;
+    border: 0;
+}
+.option-name {
+    font-weight: bold;
+}
+.option-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* The expanded editor takes the whole row, so the handle steps aside. */
+.option-row.option-open {
+    cursor: default;
+}
+.option-row.option-open > .content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+/*
+ * The expanded editor stacks.
+ *
+ * `.list-item > .content` is `display: flex; align-items: center` in
+ * PocketBase's list, which is right for a row of one field and wrong for a form
+ * — it laid the option name and every value box out side by side, squeezing
+ * "Option value 1" into a 55px column where the label wrapped onto two lines.
+ */
+.shopify-skin .option-row.option-open > .content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.option-value-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+.option-value-row > .field {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* "Add another option" is a row of the list, not a button sitting on one. */
+.option-add {
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* The "combinations have no variant" notice, above the variant table. */
+.missing-variants {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    color: var(--warningAltColor, var(--surfaceTxtColor));
+    background: color-mix(in srgb, var(--warningColor), transparent 88%);
+    border-radius: var(--borderRadius);
+}
+
+/*
+ * The "Add" chip in the collections box. It sits inside the trigger button, so
+ * it inherits that button's click — which is why it is a span and not a button
+ * of its own: nesting one inside another is invalid, and the outer one already
+ * opens the picker.
+ */
+.chip-new {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--surfaceTxtHintColor);
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--surfaceAlt3Color);
+}
+.input.select.multiple .selected-container:hover .chip-new {
+    color: var(--surfaceTxtColor);
+    box-shadow: inset 0 0 0 1px var(--surfaceAlt4Color);
+}
+.chip-new i {
+    font-size: 13px;
+    line-height: 1;
+}
+
+/* ----------------------------------------------------------- field sizing */
+
+/*
+ * There used to be a floating label here. It is gone, and that is the fix.
+ *
+ * PocketBase's field already puts the label inside the box, on its own row
+ * above the input. Making it *float* — sink into the box when empty, rise when
+ * filled — meant taking it out of flow, and every control that is not a plain
+ * text box then had to be carved out by hand: the widget fields, whose label has
+ * nothing to move out of the way of; the checkboxes, whose label *is* the
+ * control and which stopped being clickable; the table cells, which have no
+ * label and took the raised padding anyway; the option editor, which the
+ * absolute positioning squashed. Six regressions, each a guard on a selector,
+ * and the result still read worse than the thing it replaced.
+ *
+ * So the label stays in flow. It cannot overlap a value, there is nothing to
+ * exempt, and every field type — text, textarea, select, combobox, checkbox,
+ * table cell — behaves the same way for free.
+ *
+ * What is kept from that work is the compaction, which was the half worth
+ * having: a smaller label row and a tighter input, so a field is 36px instead of
+ * PocketBase's 45.
+ */
+.shopify-skin .field > label {
+    min-height: 0;
+    padding: 5px var(--inputPadding) 0;
+    font-size: 11px;
+    line-height: 14px;
+}
+
+.shopify-skin .field > input:not([type="checkbox"]):not([type="radio"]),
+.shopify-skin .field > textarea,
+.shopify-skin .field > select {
+    padding-top: 1px;
+    padding-bottom: 6px;
+}
+.shopify-skin .field > textarea {
+    min-height: 72px;
+}
+
+/*
+ * A half with no label of its own needs nothing here.
+ *
+ * The rule above compacts `input`, `textarea` and `select` — the elements the
+ * browser draws — and this panel's select is a div, so it is untouched by it.
+ * That turns out to be right: the select stretches to the height its labelled
+ * neighbour sets and centres its own trigger inside, which reads as a unit
+ * belonging to the whole field rather than a second value on the label's line.
+ * Noted because it looks like an oversight and is not one.
+ */
+
+/*
+ * Checkbox labels are deliberately not touched.
+ *
+ * form.css already sizes them, and it reserves the left padding the box is
+ * drawn into — `calc(var(--checkboxSize) + 7px)`. Its selector is more specific
+ * than the compact rule above, so it wins on its own; the override that used to
+ * sit here only managed to zero that padding and drop the box on top of its own
+ * label text.
+ */
+
+/* A cell in the variant table has no label — its column heading names it — so
+   its box is a plain one, centred rather than top-weighted. */
+.shopify-skin .card table.table .field > input {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+/* ------------------------------------------------- category picker rows */
+
+/*
+ * A row in the picker is two controls: a chevron that opens the branch and a
+ * label that chooses it. They are separate buttons because they do separate
+ * things — a nested button is invalid markup, and clicking "Apparel" to expand
+ * it when you meant to select it is the whole reason Shopify splits them too.
+ */
+.category-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding-left: 5px;
+}
+.category-row > .category-choose {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-left: 5px;
+}
+.category-row > .category-expand {
+    flex: 0 0 auto;
+}
+
+/*
+ * The currency belongs inside the box with its number.
+ *
+ * Once the table's inputs became ordinary filled boxes the prefix was left
+ * sitting on the row beside one, so a price read as two separate things. The
+ * fill moves to the pair and the input goes transparent inside it, which is how
+ * Shopify draws it: one control, with the code as its first character.
+ */
+.shopify-skin .card table.table .money-field {
+    background: var(--inputColor);
+    border-radius: var(--inputBorderRadius);
+    transition: background var(--animationSpeed);
+}
+.shopify-skin .card table.table .money-field:focus-within {
+    background: var(--inputFocusColor);
+}
+.shopify-skin .card table.table .money-field > input,
+.shopify-skin .card table.table .money-field > input:focus {
+    background: none;
+}
+
+/* The code and the number share a baseline: the prefix centres against the
+   input's full height rather than sitting on the row's own line box. */
+.shopify-skin .card table.table .money-field {
+    align-items: stretch;
+}
+.shopify-skin .card table.table .money-field > .money-prefix {
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+}
+
+/* -------------------------------------------------------- derived readouts */
+
+/*
+ * Profit and margin are not fields. They take the shape of one so the row reads
+ * evenly beside Cost per item, but they have no fill and no outline — nothing
+ * about them should invite a click, because there is nothing to type.
+ */
+.readonly-field {
+    background: none !important;
+    pointer-events: none;
+    /* Clear of the box beside them. A `.fields` row joins its children edge to
+       edge, which is what two halves of one control want and not what these
+       want: they carry no fill, so with nothing between them and the cost box
+       the first label starts hard against its corner. */
+    padding-left: var(--smSpacing);
+}
+.readonly-label {
+    display: block;
+    padding: 4px 0 0;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--surfaceTxtHintColor);
+}
+.readonly-value {
+    display: block;
+    padding: 4px 0 6px;
+    font-size: var(--fontSize);
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+    color: var(--surfaceTxtColor);
+}
+
+/* ------------------------------------------ product organisation controls */
+
+/*
+ * Four controls stacked in one card, and they were starting their text at three
+ * different left edges: a combobox at its input padding, the Collections chip
+ * ten pixels further in, and the Tags hint flush against the border. A column of
+ * fields is read down its left edge, so that edge has to be one line.
+ *
+ * The chip is now the shared empty state for both Collections and Tags — the
+ * same object, in the same place — and the overlay is positioned against the
+ * padding rather than the border box.
+ */
+
+
+/* ------------------------------------------------------- variant toolbar */
+
+/*
+ * The row above the variant table: a sort order and a select-all, not a form.
+ *
+ * Both were `.field`s, which in this panel means a filled box with the label
+ * inside — so choosing how the table groups looked exactly like entering a
+ * price and took as much room. Shopify puts the label beside the control as
+ * plain text and keeps the control small, which is what these two actually are.
+ *
+ * (This block was lost once, swallowed by a rewrite of the region above it,
+ * which is how "Group by" ended up on three lines. Its own banner now.)
+ */
+.variant-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.variant-toolbar-label {
+    flex: 0 0 auto;
+    font-size: var(--smFontSize);
+    color: var(--surfaceTxtHintColor);
+}
+/* The checkbox keeps its `.field` for form.css's checkbox styling, but not the
+   fill and padding that make a field look like a box to type in. */
+.variant-toolbar .field.variant-toolbar-check {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 0;
+    margin-left: 8px;
+    background: none;
+}
+
+/*
+ * A label-less select sizes to its content. `.input.select` is a block, and a
+ * block with `width: auto` fills its line — which is why the width has to come
+ * from the flex basis rather than from `width` alone.
+ */
+.input.select.compact {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+}
+.input.select.compact .selected-container {
+    min-height: var(--smBtnHeight);
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: var(--smFontSize);
+}
+.input.select.compact .selected-item {
+    padding-right: 4px;
+}
+
+/* ------------------------------------------------- variant table: price */
+
+/*
+ * Shopify's price cell: a bordered white box with the currency symbol inside
+ * it, not a filled grey one carrying the three-letter code.
+ *
+ * The symbol comes from `currencySymbol()` in format.js rather than from the
+ * API. Money crosses the wire as minor units plus a code precisely because the
+ * glyph and the separators belong to whoever is reading — and that reader is
+ * this panel, so deriving it here is the rule working, not an exception to it.
+ *
+ * The box is outlined rather than filled because it sits in a table: a column
+ * of filled rectangles reads as a block of colour, while an outline says
+ * "editable" without competing with the number inside it.
+ */
+.shopify-skin .card table.table .money-field {
+    background: var(--surfaceColor);
+    border: 1px solid var(--surfaceAlt3Color);
+    border-radius: var(--borderRadius);
+    transition:
+        border-color var(--animationSpeed),
+        box-shadow var(--animationSpeed);
+}
+.shopify-skin .card table.table .money-field:focus-within {
+    background: var(--surfaceColor);
+    border-color: var(--surfaceAlt5Color);
+    box-shadow: 0 0 0 2px var(--surfaceAlt2Color);
+}
+.shopify-skin .card table.table .money-field > input,
+.shopify-skin .card table.table .money-field > input:focus {
+    background: none;
+}
+.shopify-skin .card table.table .money-field > .money-prefix {
+    color: var(--surfaceTxtHintColor);
+}
+
+/* ---------------------------------------------------------------- switch */
+
+/*
+ * A thinner switch than PocketBase's 24px one — Shopify's proportions, which
+ * are a low track with a circular knob rather than a tall track with a rounded
+ * rectangle in it.
+ *
+ * The tokens are re-pointed on the same selector form.css declares them on, so
+ * the sizing flows through its own rules. The knob is the exception: form.css
+ * gives it a width 3px wider than its height and a 5px radius, which is a
+ * squircle at 24px and reads as a lozenge at 16, so both are restated as a
+ * circle here.
+ */
+.field:has(input[type="checkbox"]),
+.field:has(input[type="radio"]) {
+    --switchH: 16px;
+    --switchW: 30px;
+}
+/* The selector matches form.css's own nesting depth: its knob rules live
+   inside `.field:has(input[type="checkbox"])`, so a flatter one here loses. */
+.field:has(input[type="checkbox"]) input.switch ~ label::before,
+.field:has(input[type="radio"]) input.switch ~ label::before {
+    border-radius: 999px;
+}
+.field:has(input[type="checkbox"]) input.switch ~ label::after,
+.field:has(input[type="radio"]) input.switch ~ label::after {
+    top: 3px;
+    left: 3px;
+    width: calc(var(--switchH) - 6px);
+    height: calc(var(--switchH) - 6px);
+    border-radius: 50%;
+}
+.field:has(input[type="checkbox"]) input.switch:checked ~ label,
+.field:has(input[type="radio"]) input.switch:checked ~ label {
+    --switchTranslateX: calc(var(--switchW) - var(--switchH));
+}
+/* `corner-shape: squircle` is form.css's, and a squircle of a circle is a
+   circle with the corners eaten. Where it applies, both go back to round. */
+@supports (corner-shape: squircle) {
+    .field:has(input[type="checkbox"]) input.switch ~ label::before,
+    .field:has(input[type="checkbox"]) input.switch ~ label::after {
+        corner-shape: round;
+    }
+}
+.field:has(input[type="checkbox"]) input.switch.sm ~ label {
+    --switchH: 14px;
+    --switchW: 26px;
+}
+
+/* --------------------------------------------------- category metafields */
+
+/*
+ * The card that asks a product its category's questions.
+ *
+ * Shopify's layout, which is the one this content wants: the label in a fixed
+ * left column and the control beside it, rather than a label above a box. The
+ * answers are short lists of chips, so a stacked field would be two lines of
+ * mostly-empty box each, sixteen times over.
+ */
+/*
+ * The heading is a plain line of text with the category at the far end.
+ * `.section-title`'s rule is doing two jobs elsewhere — separating, and spacing
+ * a trailing button to the right — so dropping it here means pushing the chip
+ * out with a margin instead.
+ */
+.cat-meta-title::after {
+    content: none;
+}
+.cat-meta-scope {
+    margin-left: auto;
+    font-weight: normal;
+}
+
+.cat-meta-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.cat-meta-row {
+    display: flex;
+    align-items: center;
+    gap: var(--smSpacing);
+}
+/*
+ * A fixed column, not `max-content`: the labels are a list of questions and
+ * they should start on one line, but "Constitutive ingredients" must not be
+ * allowed to set that line for everybody. Past its width the label wraps.
+ */
+.cat-meta-label {
+    flex: 0 0 185px;
+    min-width: 0;
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    color: var(--surfaceTxtColor);
+}
+.cat-meta-row > .input.select,
+.cat-meta-row > :not(.cat-meta-label) {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/*
+ * The value box is Shopify's: a bordered white box holding the answers as
+ * chips, not the panel's filled field. On this card that difference is doing
+ * work — the rows are a list of questions, and a filled box for each turns the
+ * card into a wall of grey.
+ *
+ * Ours stays editable in place. Shopify's box is a button that opens an editor,
+ * which is what its metafields need (dates, dimensions, references); these are
+ * lists of words, and a popover to add one word would be a click for nothing.
+ * So: their box, our typing.
+ */
+.cat-meta-row .input.select.token-input {
+    background: var(--surfaceColor);
+    border: 1px solid var(--surfaceAlt3Color);
+}
+.cat-meta-row .input.select.token-input:focus-within {
+    border-color: var(--surfaceAlt5Color);
+}
+/* No chevron. The dropdown still opens on click and on typing — the arrow is
+   what makes an editable box read as a picker you cannot type into. */
+.cat-meta-row .selected-container.combobox-toggle {
+    display: none;
+}
+
+/* The typing surface inside the box. Used inside a `.field` elsewhere, the
+   token input inherits form.css's reset for it; standing on its own here it
+   would otherwise draw the browser's default border inside ours. */
+.cat-meta-row .token-input-field > input {
+    border: 0;
+    outline: 0;
+    min-width: 60px;
+    padding: 2px 4px;
+    background: none;
+    color: var(--surfaceTxtColor);
+    font-family: inherit;
+    font-size: var(--fontSize);
+}
+
+/*
+ * The unanswered fields, as a recessed strip at the foot of the card — the one
+ * place on this page that paints its own ground, because the chips are offers
+ * rather than content and the ground is what says so. It is the card's own
+ * bottom edge, so it takes the card's radius and cancels its padding.
+ */
+.cat-meta-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: var(--spacing) calc(-1 * var(--spacing)) calc(-1 * var(--spacing));
+    padding: 12px var(--spacing);
+    background: var(--surfaceAlt1Color);
+    border-top: 1px solid var(--surfaceAlt2Color);
+    border-radius: 0 0 var(--borderRadius) var(--borderRadius);
+}
+/* A chip, not a `.btn`: eleven buttons in a row reads as a toolbar, and none of
+   these does anything but open a field. */
+.cat-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px 4px 8px;
+    border: 0;
+    border-radius: 999px;
+    font-size: var(--smFontSize);
+    line-height: var(--smLineHeight);
+    font-family: inherit;
+    color: var(--surfaceTxtColor);
+    background: var(--surfaceAlt2Color);
+    cursor: pointer;
+    transition: background var(--animationSpeed);
+}
+.cat-meta-chip:hover,
+.cat-meta-chip:focus-visible {
+    background: var(--surfaceAlt3Color);
+}
+.cat-meta-chip > i {
+    font-size: 14px;
+    color: var(--surfaceTxtHintColor);
+}
+
+/* The count beside the Category label, which is a caption on a bold label. */
+.cat-meta-count {
+    margin-left: auto;
+    font-weight: normal;
+}
+
+@media (max-width: 700px) {
+    /* Two columns stop being two columns before the control is unusable. */
+    .cat-meta-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+    .cat-meta-label {
+        flex: 0 0 auto;
+    }
+}
+
+/*
+ * The category drawer's field rows. Each is a label box, its choices, and a
+ * Remove that sits with them rather than under them — the drawer is narrow, so
+ * the three stack and the button is the row's own last line.
+ */
+.attr-row {
+    padding: 10px;
+    background: var(--surfaceAlt1Color);
+    border-radius: var(--borderRadius);
+}
+.attr-row > .attr-remove {
+    margin-top: 5px;
+    margin-left: auto;
+}
+
+/* ----------------------------------------------------------- status chip */
+
+/*
+ * The product's status, on the editor's header row and in the catalog's Status
+ * column. Both are the same fact, so both are the same chip.
+ *
+ * PocketBase's `.label` is a tag — square-ish, and in the header row it landed
+ * between Preview and Share reading as a fourth, disabled button. Three changes
+ * make it a status instead: the pill shape, which no button on this page has; a
+ * dot in the tone of the state, which is the part that is legible before the
+ * word is read; and a capital, so it stops looking like the raw enum it is.
+ *
+ * The word itself stays the value the API returns — capitalising in CSS means
+ * the DOM still says `draft`, which is what a test or a screen reader should
+ * hear.
+ */
+.status-chip {
+    padding: 5px 10px 5px 8px;
+    border-radius: 999px;
+    text-transform: capitalize;
+}
+
+/*
+ * The dot carries the state's own colour against the chip's tinted ground. Its
+ * default is the hint grey, which is Archived — a state with no tone class of
+ * its own, and none needed: retired is the absence of a colour, not another
+ * one.
+ */
+.status-chip::before {
+    content: "";
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--statusDotColor, var(--surfaceTxtHintColor));
+}
+.status-chip.success {
+    --statusDotColor: var(--successColor);
+}
+.status-chip.info {
+    --statusDotColor: var(--infoColor);
+}
+
+/* ------------------------------------------------------- product actions */
+
+/*
+ * The header's action row: Preview, Share, More actions, and the pair that
+ * walks the catalog. They wrap onto a second line rather than squeezing,
+ * because the breadcrumb beside them holds a product title of any length.
+ */
+.page-header-primary-btns {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/*
+ * A select in that group is a control, not a form row.
+ *
+ * `.field` is a full-width block, which is right in a form column and wrong in
+ * a toolbar: it claims the whole group, and the button beside it wraps to a
+ * line of its own while the search box sits alone on the line above. Products
+ * and Orders both put a status filter up there, so both had it. Sizing the
+ * field to its own control is what keeps the row one row.
+ */
+.page-header-primary-btns .field {
+    width: auto;
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+/* A link styled as a button still has to look unavailable when it is. `.btn`
+   has no anchor state for this — `disabled` is an attribute anchors do not
+   carry — so the class does the work. */
+.page-header-primary-btns a.btn.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/* The actions menu is a short list of verbs, not a picker, so it sizes to its
+   content instead of to the button that opens it. */
+.dropdown.dropdown-sm {
+    width: auto;
+    min-width: 180px;
+}
+.dropdown .dropdown-item.txt-danger {
+    color: var(--dangerColor);
+}
+
+/* ------------------------------------------------------------ page footer */
+
+/*
+ * A gap above the footer.
+ *
+ * The footer keeps `margin-top: auto` so it still falls to the bottom of a
+ * short page — and auto leaves nothing at all once the content reaches it,
+ * which is exactly when a rule matters: a long table ends with its last row cut
+ * off flush against the count. So the space goes on whatever sits above the
+ * footer rather than on the footer itself, and the hairline gets a margin on
+ * one side and its own padding on the other.
+ *
+ * `--smSpacing` rather than `--spacing`: this is a seam between two parts of
+ * one page, not the page's own margin, and it shrinks with the rest of the
+ * layout on a narrow screen.
+ */
+.page-content > :has(+ .page-footer) {
+    margin-bottom: var(--smSpacing);
+}
+
+/* --------------------------------------------------------- orders filters */
+
+/* Wide enough for "Awaiting payment", the longest thing either one says. */
+.page-orders .page-header-primary-btns .field > .select {
+    width: 165px;
+}
+
+/*
+ * Slimmer status and payment badges.
+ *
+ * `.label` is sized to stand beside a button — 25px on a 25px floor — which is
+ * right where one labels a heading and wrong twenty-five times down a column:
+ * at that height it reads as a control somebody could press. Trimmed to the
+ * text it holds, it reads as what it is, a state.
+ *
+ * The colours are untouched. They are the whole vocabulary of the column, and
+ * PocketBase's status tints already carry it.
+ */
+.page-table-wrapper .label {
+    min-height: 0;
+    padding: 1px 8px;
+    font-size: 12px;
+    line-height: 18px;
+}
+
+/* ------------------------------------------------------------ list tables */
+
+/*
+ * The four listing tables — orders, products, inventory, categories.
+ *
+ * These are read, not filled in. Somebody is looking down a column of twenty-
+ * five rows for the one that needs them, many times a day, and everything here
+ * follows from that: the row is the unit, the column name is scaffolding, and
+ * nothing may cost height.
+ *
+ * That last part is the whole difficulty. Contrast in a table is normally
+ * bought with space — more padding, a zebra band, a filled head — and none of
+ * that is available. So it is taken from value, weight and role instead, which
+ * costs nothing vertically and, in the head's case, gives height back.
+ */
+
+/*
+ * A surface, not a bleed. PocketBase pulls the wrapper out past the page
+ * padding, which is right when the page is white and the table is the page —
+ * on a ground it leaves the table with no shape, and the head dissolves upward
+ * into the page above it.
+ */
+.page-table-wrapper {
+    margin-left: 0;
+    margin-right: 0;
+    background: var(--cardFace);
+    border: 1px solid var(--surfaceAlt3Color);
+    border-radius: var(--borderRadius);
+}
+/* The wrapper's own edge closes the last row. Its bottom border would sit one
+   pixel above that one and read as a doubled line. */
+.page-table-wrapper tbody tr:last-child :is(td, th) {
+    border-bottom: 0;
+}
+.page-table-wrapper :is(thead, tbody) :is(td, th) {
+    background: var(--cardFace);
+}
+
+/*
+ * Column names as utility type.
+ *
+ * They were 13.7px at weight 700 — larger and heavier than the rows they name,
+ * so the eye met the scaffolding first. Small, tracked capitals in the hint
+ * colour read as a label rather than as a datum, which is the contrast that
+ * matters here: not light against dark, but frame against content. It also
+ * takes 8px off the head.
+ */
+.page-table-wrapper thead th {
+    height: auto;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--surfaceTxtHintColor);
+    white-space: nowrap;
+}
+
+/*
+ * The one line the design rests on.
+ *
+ * The head keeps the body's colour and is separated from it by a single rule a
+ * step darker than the hairlines between rows — enough that the eye reads it as
+ * a different kind of line. A filled band is the usual answer and it is a band
+ * of nothing: this says the same thing with one pixel.
+ *
+ * Inset rather than a border because the head is sticky, and a border would
+ * scroll with the cell box while the shadow stays welded to its edge.
+ */
+.page-table-wrapper thead th {
+    box-shadow: inset 0 -1px 0 var(--surfaceAlt3Color);
+}
+
+/*
+ * One height for every listing.
+ *
+ * The 59px is literal: table.css sets it on `.page-table-wrapper tbody td`,
+ * a row height chosen for a table you edit in place. Nothing in these rows is a
+ * control, so the height only has to clear the tallest thing in them — the
+ * status chip, at 20px — and letting it do that puts a third more rows on
+ * screen.
+ *
+ * `tbody` is in the selector to match the specificity of the rule it is
+ * answering, not for reach. Without it this is one point short and loses, which
+ * is why the Orders table was the only slim one: its rule was page-scoped and
+ * outranked the default by accident.
+ */
+.page-table-wrapper tbody :is(td, th) {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    height: auto;
+    font-size: 13px;
+}
+
+/* Prices, counts and stock are read down the column, and proportional figures
+   make that a ragged edge no amount of right-alignment fixes. */
+.page-table-wrapper table {
+    font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The slack goes to the names.
+ *
+ * With `table-layout: auto` every column without a width shares what is left
+ * over, so a column holding a nine-character chip was taking as much room as
+ * one holding a product title — three hundred empty pixels between Status and
+ * Payment, and the eye travelling all of it. `width: 1%` is the shrink-to-fit
+ * idiom: the column asks for almost nothing and the layout gives it its content
+ * width, leaving the rest to the columns that actually have something to say.
+ */
+.page-table-wrapper :is(td, th).col-field-type-select {
+    width: 1%;
+    white-space: nowrap;
+}
+
+/*
+ * Hover has to be visible, because these rows open something.
+ *
+ * PocketBase's is --surfaceAlt1Color, three percent off the surface, which at
+ * a glance reads as a rendering artefact rather than as a response. The accent
+ * at seven percent is the same order of lightness and unmistakably deliberate,
+ * and it is the one place the store's colour touches the table.
+ */
+.page-table-wrapper tbody tr:hover > :is(td, th) {
+    background: color-mix(in srgb, var(--accentColor) 8%, var(--cardFace));
+}
+
+/* --------------------------------------------------------- order line edit */
+
+/* The quantity box in an order being amended. Sized to the number rather than
+   to the column: a full-width input in a four-column table reads as the cell
+   itself, and the row stops looking like a row of figures. */
+.order-qty {
+    width: 5em;
+    margin-left: auto;
+    text-align: right;
+}
+
+/* -------------------------------------------------------------- list rows */
+
+/*
+ * A row is a line of type, not a strip of controls.
+ *
+ * The three listings had three different row heights — 49, 46 and 34 — and
+ * neither tall one was tall because of what it holds. Both carried a 35px
+ * circle button inside a 24px line of text, so the control set the rhythm of a
+ * screen whose only job is to fit rows. Orders was the slim one purely because
+ * nothing in it has a button.
+ *
+ * Re-pointing --smBtnHeight rather than sizing the buttons is the same move the
+ * save bar makes: `.btn.circle.sm` reads --circleSize from it, so one token
+ * brings every control in a row down to the line box the row already had.
+ */
+.page-table-wrapper tbody :is(td, th) {
+    --smBtnHeight: 24px;
+}
+
+/*
+ * The name and its handle share a line.
+ *
+ * The handle is an identifier, so it is never cut: the name yields first, which
+ * is the right way round when the two are cut from the same words and the tail
+ * of the handle is the part that tells two rows apart.
+ */
+.row-name {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+.row-name > .txt-ellipsis {
+    min-width: 0;
+}
+.row-handle {
+    flex: 0 0 auto;
+}
+
+/*
+ * The destructive control is invisible at rest.
+ *
+ * A delete icon repeated down fifteen rows is fifteen invitations to misclick,
+ * drawn at the same weight as the data it sits beside. It is not removed — it
+ * appears where the eye already is, on the row under the pointer or under the
+ * keyboard, which is the only row it could apply to anyway.
+ *
+ * Only the destructive one, which is why it is named rather than selected by
+ * position. The first version hid everything in the cell and took "Add a
+ * subcategory" with it, leaving the category tree with no visible way to add a
+ * child — hiding something you might do is not the same as hiding something you
+ * might do by accident.
+ *
+ * Opacity rather than `display` or `visibility`, so the button keeps its box
+ * (the column does not jump) and stays in the tab order. `:focus-within` on the
+ * row covers the keyboard, and a device with no hover shows them always —
+ * there, "the row under the pointer" is not a thing.
+ */
+.page-table-wrapper tbody td.col-meta .row-delete {
+    opacity: 0;
+    transition: opacity var(--animationSpeed);
+}
+.page-table-wrapper tbody tr:hover td.col-meta .row-delete,
+.page-table-wrapper tbody tr:focus-within td.col-meta .row-delete,
+.page-table-wrapper tbody td.col-meta .row-delete:focus-visible {
+    opacity: 1;
+}
+@media (hover: none) {
+    .page-table-wrapper tbody td.col-meta .row-delete {
+        opacity: 1;
+    }
+}
+
+/*
+ * The fade is motion this file introduced, so it honours the preference like
+ * the rest. It lives here rather than in the reduced-motion block above for a
+ * dull reason: that block is earlier in the file, and against an equally
+ * specific selector the later rule wins. A rule that cannot win is worse than
+ * no rule, because it reads as handled.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .page-table-wrapper tbody td.col-meta .row-delete {
+        transition-duration: 1ms;
+    }
+}
+
+/* ----------------------------------------------------------- order detail */
+
+/*
+ * The order drawer.
+ *
+ * It is read in the first two seconds and acted on in the next: how much, has
+ * it been paid, who is it for, what happens now. It had all four in one narrow
+ * column down the left of an 880px panel, with a third of the panel empty
+ * below and the delivery address squeezed into three lines of hint text.
+ *
+ * So: two columns, the same grey ground and white cards the product editor and
+ * the listings use, and the total at a size that matches how often it is the
+ * reason somebody opened the order at all.
+ */
+.order-detail {
+    /* The drawer's own padding, given back so the ground reaches the edges.
+       PocketBase pads .modal-content, and a card inset inside that padding
+       would sit on a white margin rather than on a ground. */
+    margin: calc(-1 * var(--smSpacing)) calc(-1 * var(--spacing));
+    padding: var(--smSpacing) var(--spacing) var(--spacing);
+    background: var(--pageColor);
+    min-height: calc(100% + var(--smSpacing) + var(--spacing));
+}
+
+.order-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: var(--smSpacing);
+}
+
+/*
+ * Items and shipments against summary and customer. The rail is fixed because
+ * its contents are: a total, a few figures and an address do not get better
+ * with more width, and everything they do not need belongs to the line items.
+ */
+.order-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: var(--smSpacing);
+}
+.order-main,
+.order-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--smSpacing);
+    min-width: 0;
+}
+
+/* Narrow drawers, and the panel on a phone: the rail goes under rather than
+   squeezing the items into a column no invoice line fits in. */
+@media (max-width: 780px) {
+    .order-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.order-card {
+    padding: var(--smSpacing);
+    background: var(--cardFace);
+    /* The panel's card recipe — surface, border, --borderRadius — but a step
+       darker than `.card` uses. One step off the fill is a hairline that a
+       grey ground swallows; two is an edge you can actually see, which is the
+       whole job of putting one there. */
+    border: 1px solid var(--surfaceAlt3Color);
+    border-radius: var(--borderRadius);
+}
+
+/* The same small tracked capitals the listing tables use for a column name,
+   and for the same reason: a section title is a label, not a heading somebody
+   reads. It keeps the drawer and the lists speaking one language. */
+.order-card-title {
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--surfaceTxtHintColor);
+}
+
+/* -------------------------------------------------------------- the summary */
+
+.order-total {
+    font-size: 26px;
+    line-height: 1.15;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--surfaceTxtColor);
+}
+
+/* What that money has done, under the figure it refers to. Green only when it
+   has actually arrived — an unpaid total is not bad news, it is simply the
+   next thing to do, so it stays in the hint colour rather than shouting. */
+.order-paid {
+    margin-top: 2px;
+    font-size: var(--smFontSize);
+    color: var(--surfaceTxtHintColor);
+}
+.order-paid.is-paid {
+    color: var(--successColor);
+}
+.order-paid.is-refunded {
+    color: var(--dangerColor);
+}
+
+.order-lines {
+    margin-top: var(--smSpacing);
+    padding-top: 10px;
+    border-top: 1px solid var(--surfaceAlt2Color);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.order-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: var(--smFontSize);
+}
+.order-line .txt-money {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- the customer */
+
+.order-customer-name {
+    font-weight: 600;
+}
+/* Each on its own line and each a link. Chasing an order means writing to
+   somebody or ringing them, and both should be one click from here. */
+.order-contact {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--smFontSize);
+}
+.order-address {
+    margin: 10px 0 0;
+    font-style: normal;
+    font-size: var(--smFontSize);
+    line-height: 1.5;
+    color: var(--surfaceTxtHintColor);
+}
+
+/* ---------------------------------------------------------------- the items */
+
+/*
+ * The items table sits in a card rather than in a page wrapper, so the slim
+ * treatment the listings got does not reach it. Same rules, same reasons: the
+ * column names are labels, the rows are read rather than edited, and the
+ * figures line up.
+ */
+.order-card table.table {
+    font-variant-numeric: tabular-nums;
+}
+.order-card table.table thead th {
+    height: auto;
+    padding: 0 0 6px;
+    background: none;
+    border: 0;
+    box-shadow: inset 0 -1px 0 var(--surfaceAlt3Color);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--surfaceTxtHintColor);
+}
+.order-card table.table tbody :is(td, th) {
+    height: auto;
+    padding: 8px 0;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--surfaceAlt2Color);
+    font-size: 13px;
+}
+/* The last line has the card's own edge under it already. */
+.order-card table.table tbody tr:last-child :is(td, th) {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+/* Breathing room between a figure and the one in the next column, without
+   giving the item name less than it needs. */
+.order-card table.table :is(td, th) + :is(td, th) {
+    padding-left: 12px;
+}
+
+/*
+ * ...and the same reversal for the name, at the same breakpoint.
+ *
+ * In a row the two share a line, because the row height is the whole argument.
+ * A card has no such pressure — it is already tall — so they simply stack, the
+ * name reading as the card's heading and the handle as its subtitle. Trying to
+ * keep them on one line here was the wrong instinct: at 390px one of the two
+ * has to be cut, and neither deserves it once the constraint is gone.
+ */
+@media (max-width: 600px) {
+    .responsive-table .row-name {
+        display: block;
+    }
+    .responsive-table .row-name > span {
+        display: block;
+        white-space: normal;
+    }
+}
+
+/*
+ * A shipment row inside the card, not a card inside the card. PocketBase's
+ * `.list` draws its own bordered box, which is right on a page and wrong
+ * nested one level in: two rounded rectangles around one fact.
+ */
+.order-card .list {
+    border: 0;
+    border-radius: 0;
+}
+.order-card .list-item {
+    padding-left: 0;
+    padding-right: 0;
+    gap: 10px;
+}
+.order-card .list-item:first-child {
+    padding-top: 0;
+}
+.order-card .list-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+/* A contact is a link, but it sits under the name it belongs to and must not
+   out-weigh it. Underlined only when the pointer is on it. */
+.order-contact {
+    text-decoration: none;
+}
+.order-contact:hover,
+.order-contact:focus-visible {
+    text-decoration: underline;
+}
+
+/* A card whose figures an unsaved edit has overtaken. Faded rather than
+   hidden: the order still has these numbers until Save is pressed, and an
+   operator comparing the two is exactly who needs both on screen. */
+.order-card.is-superseded {
+    opacity: 0.55;
+}
+
+/* ------------------------------------------- order detail: cards that edit */
+
+.order-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.order-card-head .order-card-title {
+    margin: 0;
+}
+/* The Edit button sits against the title, not out at the card's edge: it acts
+   on that card, and pushed right it reads as belonging to the drawer. */
+.order-card-head .btn {
+    margin-left: auto;
+}
+
+.order-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: var(--smSpacing);
+}
+
+/* ----------------------------------------------------- the payment card */
+
+.order-method {
+    margin-top: 2px;
+    font-size: var(--smFontSize);
+    color: var(--surfaceTxtHintColor);
+}
+.order-reference {
+    margin-top: 6px;
+    font-size: var(--smFontSize);
+    color: var(--surfaceTxtHintColor);
+    word-break: break-all;
+}
+/* The state leads the card, so it carries the weight the total does in the one
+   beside it. */
+.order-paid {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--surfaceTxtColor);
+}
+
+/* ------------------------------------------------------ items with pictures */
+
+.order-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.order-item-text {
+    min-width: 0;
+}
+/*
+ * A fixed square whether or not there is a picture in it. A thumbnail that
+ * collapses when a product has been deleted takes the whole column with it, and
+ * a list of items that do not start at the same x is harder to read than one
+ * with a few empty frames in it.
+ */
+.order-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    overflow: hidden;
+    background: var(--pageColor);
+    border: 1px solid var(--surfaceAlt2Color);
+    border-radius: var(--borderRadius);
+    color: var(--surfaceTxtHintColor);
+    font-size: 16px;
+}
+.order-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ------------------------------------------ order detail: chrome, slimmed */
+
+/*
+ * The drawer's own header and footer are sized for a page. Here they frame a
+ * panel that is already dense, and every pixel they take is one the order does
+ * not get — so they come down to what the title and the buttons in them
+ * actually need.
+ */
+.modal.lg .modal-header,
+.modal.lg .modal-footer {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    min-height: 0;
+}
+.modal.lg .modal-header .modal-title {
+    font-size: 15px;
+}
+/* Footer buttons at the compact height, like the save bar's. A full-height
+   button under a card-based layout reads as a third kind of surface. */
+.modal.lg .modal-footer .btn {
+    height: var(--smBtnHeight);
+    min-height: var(--smBtnHeight);
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+/* The close button is what sets the header's height — 45px of button inside
+   10px of padding. At the drawer's density it only has to be big enough to
+   hit. */
+.modal.lg .modal-header .modal-close-btn {
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+}
+
+/* ------------------------------------------------- product rows with a picture */
+
+.row-product {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+/*
+ * 32px, not the drawer's 36: these rows are 34px tall and the thumbnail must
+ * sit inside one rather than setting its height. The frame stays whether or not
+ * there is an image in it, so a catalog half of whose products have pictures
+ * still reads as one column.
+ */
+.row-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    overflow: hidden;
+    background: var(--pageColor);
+    border: 1px solid var(--surfaceAlt2Color);
+    border-radius: var(--borderRadius);
+    color: var(--surfaceTxtHintColor);
+    font-size: 15px;
+}
+.row-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/*
+ * The stock-by-location table inside the inventory drawer.
+ *
+ * It is a picker, not a report: clicking a row is what decides which shelf the
+ * form below acts on, so the selected row has to read as pressed rather than as
+ * merely hovered. The left bar carries that — a background change alone is too
+ * close to the hover state to tell them apart at a glance, and the accent is
+ * the only token in this palette that is not a grey.
+ */
+.stock-locations {
+    border: 1px solid var(--surfaceAlt3Color);
+    border-radius: var(--borderRadius);
+    overflow: hidden;
+}
+.stock-locations :is(th, td) {
+    height: auto;
+    padding: 6px 10px;
+}
+.stock-locations thead th {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--surfaceTxtHintColor);
+    background: var(--pageColor);
+    white-space: nowrap;
+}
+/*
+ * `tbody tr` rather than `tr`, and repeated on the cells: table.css paints the
+ * row background on the cells, so a rule on the row alone is covered by them.
+ */
+.stock-locations tbody tr {
+    cursor: pointer;
+}
+.stock-locations tbody tr:hover :is(td, th) {
+    background: var(--pageColor);
+}
+.stock-locations tbody tr.selected :is(td, th) {
+    background: var(--pageColor);
+}
+/*
+ * The bar goes on the first cell, because `overflow: hidden` on the table clips
+ * an inset shadow drawn on the row itself. Reserving its width on every row
+ * keeps the columns from shifting sideways when the selection moves.
+ */
+.stock-locations tbody tr td:first-child {
+    box-shadow: inset 3px 0 0 transparent;
+}
+.stock-locations tbody tr.selected td:first-child {
+    box-shadow: inset 3px 0 0 var(--accentColor);
+}
+.stock-locations tbody tr + tr :is(td, th) {
+    border-top: 1px solid var(--surfaceAlt2Color);
+}
+.stock-locations .label {
+    margin-left: 5px;
+}
+
+/* ----------------------------------------------------------- app sidebar */
+
+/*
+ * The navigation as a left rail, matching the B2B Leads project: a 228px
+ * column with the wordmark at the top, the links under it, and the account at
+ * the foot.
+ *
+ * Their version is Tailwind utilities over a zinc palette. This is the same
+ * layout and the same measurements written against PocketBase's tokens, for
+ * the reason AGENTS.md rule 12 gives: the panel's CSS is PocketBase's, and a
+ * second framework beside it would make every later change a question of which
+ * system to reach for. The numbers below are theirs — 228px, 13px links,
+ * 6px radii, the per-item accents — because those are what the look is made
+ * of; the greys are this panel's, so the sidebar belongs to the pages beside
+ * it rather than to another product.
+ */
+.app {
+    flex-direction: row;
+}
+
+.app-sidebar,
+.app-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 228px;
+    flex-shrink: 0;
+    padding: 12px;
+    background: var(--surfaceColor);
+    border-right: 1px solid var(--surfaceAlt2Color);
+}
+.app-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+/* The wordmark row. */
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px 10px;
+    text-decoration: none;
+    color: var(--surfaceTxtColor);
+}
+.app-brand img {
+    height: 17px;
+    width: auto;
+}
+.app-brand-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/*
+ * The wordmark is a single near-black colour, drawn for the old accent header.
+ * On the dark rail it disappears, so it is forced to white rather than a second
+ * file being introduced: brightness(0) flattens it to black whatever it was,
+ * and invert(1) then makes that white.
+ */
+[data-color-scheme="dark"] .app-brand img {
+    filter: brightness(0) invert(1);
+}
+
+.app-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/*
+ * A link is a 13px row with a tinted icon. At rest the text is the hint grey
+ * and only the icon carries colour, which is what keeps ten coloured items
+ * from reading as a paint chart.
+ */
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    text-decoration: none;
+    color: var(--surfaceTxtHintColor);
+    transition: background var(--animationSpeed), color var(--animationSpeed);
+}
+.app-nav-link > i {
+    font-size: 15px;
+    color: var(--navIcon);
+}
+.app-nav-link:hover,
+.app-nav-link:focus-visible {
+    background: var(--surfaceAlt1Color);
+    color: var(--surfaceTxtColor);
+}
+.app-nav-link.active {
+    background: var(--navSoft);
+    color: var(--navText);
+}
+.app-nav-link.active > i {
+    color: var(--navText);
+}
+
+/*
+ * The accents, one per item, from the same palette B2B Leads draws on. Light
+ * takes the 600 for the icon, the 50 for the ground and the 700 for the text;
+ * dark takes the 400, a tenth of the 500, and the 300 — which is their own
+ * light/dark pairing, and the reason these are classes rather than values in
+ * the nav array.
+ */
+.nav-indigo  { --navIcon: #4f46e5; --navSoft: #eef2ff; --navText: #4338ca; }
+.nav-sky     { --navIcon: #0284c7; --navSoft: #f0f9ff; --navText: #0369a1; }
+.nav-blue    { --navIcon: #2563eb; --navSoft: #eff6ff; --navText: #1d4ed8; }
+.nav-amber   { --navIcon: #d97706; --navSoft: #fffbeb; --navText: #b45309; }
+.nav-rose    { --navIcon: #e11d48; --navSoft: #fff1f2; --navText: #be123c; }
+.nav-violet  { --navIcon: #7c3aed; --navSoft: #f5f3ff; --navText: #6d28d9; }
+.nav-teal    { --navIcon: #0d9488; --navSoft: #f0fdfa; --navText: #0f766e; }
+.nav-emerald { --navIcon: #059669; --navSoft: #ecfdf5; --navText: #047857; }
+.nav-cyan    { --navIcon: #0891b2; --navSoft: #ecfeff; --navText: #0e7490; }
+.nav-orange  { --navIcon: #ea580c; --navSoft: #fff7ed; --navText: #c2410c; }
+
+[data-color-scheme="dark"] {
+    .nav-indigo  { --navIcon: #818cf8; --navSoft: rgb(99 102 241 / 0.1);  --navText: #a5b4fc; }
+    .nav-sky     { --navIcon: #38bdf8; --navSoft: rgb(14 165 233 / 0.1);  --navText: #7dd3fc; }
+    .nav-blue    { --navIcon: #60a5fa; --navSoft: rgb(59 130 246 / 0.1);  --navText: #93c5fd; }
+    .nav-amber   { --navIcon: #fbbf24; --navSoft: rgb(245 158 11 / 0.1);  --navText: #fcd34d; }
+    .nav-rose    { --navIcon: #fb7185; --navSoft: rgb(244 63 94 / 0.1);   --navText: #fda4af; }
+    .nav-violet  { --navIcon: #a78bfa; --navSoft: rgb(139 92 246 / 0.1);  --navText: #c4b5fd; }
+    .nav-teal    { --navIcon: #2dd4bf; --navSoft: rgb(20 184 166 / 0.1);  --navText: #5eead4; }
+    .nav-emerald { --navIcon: #34d399; --navSoft: rgb(16 185 129 / 0.1);  --navText: #6ee7b7; }
+    .nav-cyan    { --navIcon: #22d3ee; --navSoft: rgb(6 182 212 / 0.1);   --navText: #67e8f9; }
+    .nav-orange  { --navIcon: #fb923c; --navSoft: rgb(249 115 22 / 0.1);  --navText: #fdba74; }
+}
+
+/* The account block, pinned to the foot by the margin above it. */
+.app-sidebar-foot {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--surfaceAlt2Color);
+}
+.app-account-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 6px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    color: var(--surfaceTxtColor);
+    transition: background var(--animationSpeed);
+}
+.app-account-trigger:hover,
+.app-account-trigger:focus-visible {
+    background: var(--surfaceAlt1Color);
+}
+.app-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primaryColor);
+    color: var(--primaryTxtColor);
+    font-size: 11px;
+    font-weight: 600;
+}
+.app-account-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+}
+.app-account-name {
+    font-size: 12px;
+    font-weight: 600;
+}
+.app-account-role {
+    font-size: 10px;
+    color: var(--surfaceTxtHintColor);
+}
+.app-account-trigger > i:last-child {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--surfaceTxtHintColor);
+}
+
+/*
+ * Below 768px — their `md` — the rail becomes a drawer over the page, with a
+ * bar carrying the toggle. The drawer is translated rather than removed, so it
+ * slides rather than appearing, and it is always in the DOM for the transition
+ * to have something to move.
+ */
+.app-topbar,
+.app-drawer,
+.app-backdrop {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .app {
+        flex-direction: column;
+    }
+    .app-sidebar {
+        display: none;
+    }
+    .app-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        background: var(--surfaceColor);
+        border-bottom: 1px solid var(--surfaceAlt2Color);
+    }
+    .app-topbar .app-brand {
+        padding: 0;
+    }
+    .app-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        border: 0;
+        background: rgb(0 0 0 / 0.4);
+    }
+    .app-drawer {
+        display: flex;
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 50;
+        width: 256px;
+        max-width: 80vw;
+        box-shadow: var(--baseShadow);
+        transform: translateX(-100%);
+        transition: transform 200ms ease-out;
+    }
+    .app-drawer.open {
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-drawer {
+        transition-duration: 1ms;
+    }
+}
+
+/*
+ * The save bar was centred over the app header, which no longer exists. It
+ * keeps its place at the top of the page — now the content column, so it is
+ * offset by the rail rather than by the window.
+ */
+@media (min-width: 769px) {
+    .save-bar {
+        left: 228px;
+    }
+}
+
+/*
+ * PocketBase's `.list` carries `overflow: auto`. Upstream it only ever appears
+ * inside a container that has already given it a height, so nothing there
+ * exposes what happens otherwise: as a direct child of a page's flex column it
+ * has no basis, flexbox shrinks it, and `overflow` hides the result — the items
+ * lay out at their full height inside a two-pixel box, and the section reads as
+ * empty while every element in it is present, visible and correctly coloured.
+ *
+ * Opting out of shrinking is the whole fix. Measured, not guessed: the symptom
+ * looks exactly like a colour or a `display` problem, and is neither.
+ */
+.page-content > .list {
+    flex: 0 0 auto;
+}
