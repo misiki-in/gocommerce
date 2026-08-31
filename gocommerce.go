@@ -218,6 +218,7 @@ type App struct {
 	fulfillment *Fulfillments
 	transfer    *Transfer
 	superusers  *Superusers
+	roles       *RoleRights
 	media       *Media
 	discounts   *Discounts
 	locations   *Locations
@@ -370,7 +371,9 @@ func (a *App) buildServices() {
 	a.payments = &Payments{app: a, providers: map[string]PaymentProvider{}}
 	a.fulfillment = &Fulfillments{app: a, providers: map[string]FulfillmentProvider{}}
 	a.transfer = &Transfer{app: a}
-	a.superusers = newSuperusers(a.db)
+	// Before superusers: identity resolves rights through it on every scan.
+	a.roles = &RoleRights{app: a}
+	a.superusers = newSuperusers(a.db, a.roles)
 	a.media = &Media{app: a}
 	a.discounts = &Discounts{app: a}
 	a.locations = &Locations{app: a}

@@ -38,9 +38,10 @@ type Invitation struct {
 	ID    int64  `json:"id"`
 	Email string `json:"email"`
 	Role  string `json:"role"`
-	// Rights is what the role carries, resolved on the way out. The person
-	// deciding whether to send this needs to see what they are handing over,
-	// and a role name alone does not say.
+	// Rights is what the role carries *here*, resolved on the way out through
+	// the store's matrix. The person deciding whether to send this needs to see
+	// what they are handing over, and a role name alone does not say — least of
+	// all in a store that has re-cut the role.
 	Rights []Right `json:"rights"`
 	// Token is the secret, and it is populated on exactly one response: the one
 	// that created the invitation. Every later read leaves it empty, because by
@@ -70,7 +71,11 @@ const (
 const invitationColumns = `i.id, i.email, i.role, i.invited_by,
 	coalesce(s.email, ''), i.created_at, i.expires_at, i.accepted_at`
 
-func scanInvitation(row scanner) (*Invitation, error) {
+// scanInvitation reads one invitation. rights is the store's resolved matrix,
+// passed in rather than looked up here so that listing a page of invitations
+// asks the question once — and so that what an invitee is told they are getting
+// is the same set the store will actually give them.
+func scanInvitation(row scanner, rights map[string][]Right) (*Invitation, error) {
 	inv := &Invitation{}
 	var invitedBy sql.NullInt64
 	var accepted sql.NullTime
@@ -84,7 +89,7 @@ func scanInvitation(row scanner) (*Invitation, error) {
 	if accepted.Valid {
 		inv.AcceptedAt = &accepted.Time
 	}
-	inv.Rights = RightsOf(inv.Role)
+	inv.Rights = rights[inv.Role]
 	inv.Status = invitationStatus(inv.ExpiresAt, accepted)
 	return inv, nil
 }
@@ -165,12 +170,16 @@ func (s *Invitations) Invite(ctx context.Context, email, role string, invitedBy 
 
 // Get returns one invitation, without its token.
 func (s *Invitations) Get(ctx context.Context, id int64) (*Invitation, error) {
+	rights, err := s.app.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
 	row := s.app.db.QueryRowContext(ctx, `
 		SELECT `+invitationColumns+`
 		FROM superuser_invitations i
 		LEFT JOIN superusers s ON s.id = i.invited_by
 		WHERE i.id = $1`, id)
-	inv, err := scanInvitation(row)
+	inv, err := scanInvitation(row, rights)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, NotFoundf("invitation %d does not exist", id)
 	}
@@ -185,6 +194,10 @@ func (s *Invitations) Get(ctx context.Context, id int64) (*Invitation, error) {
 // Accepted ones are kept and shown because "who let this person in" is a
 // question a team screen should be able to answer without a database client.
 func (s *Invitations) List(ctx context.Context) ([]*Invitation, error) {
+	rights, err := s.app.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.app.db.QueryContext(ctx, `
 		SELECT `+invitationColumns+`
 		FROM superuser_invitations i
@@ -196,7 +209,7 @@ func (s *Invitations) List(ctx context.Context) ([]*Invitation, error) {
 	defer rows.Close()
 	out := []*Invitation{}
 	for rows.Next() {
-		inv, err := scanInvitation(rows)
+		inv, err := scanInvitation(rows, rights)
 		if err != nil {
 			return nil, Internalf(err, "scan invitation")
 		}
@@ -239,12 +252,16 @@ func (s *Invitations) Revoke(ctx context.Context, id int64) error {
 // holding the link already knows or is about to be told. The token itself is
 // the secret; nothing here is enumerable without it.
 func (s *Invitations) Lookup(ctx context.Context, token string) (*Invitation, error) {
+	rights, err := s.app.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
 	row := s.app.db.QueryRowContext(ctx, `
 		SELECT `+invitationColumns+`
 		FROM superuser_invitations i
 		LEFT JOIN superusers s ON s.id = i.invited_by
 		WHERE i.token_hash = $1`, hashToken(token))
-	inv, err := scanInvitation(row)
+	inv, err := scanInvitation(row, rights)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, NotFoundf("this invitation link is not valid")
 	}
@@ -281,14 +298,18 @@ func usableInvitation(inv *Invitation) error {
 // conditional UPDATE, so two people opening the same link at once cannot both
 // become operators.
 func (s *Invitations) Accept(ctx context.Context, token, password string) (*Superuser, *Session, error) {
+	rights, err := s.app.roles.All(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	var su *Superuser
-	err := InTx(ctx, s.app.db, func(tx *sql.Tx) error {
+	err = InTx(ctx, s.app.db, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx, `
 			SELECT `+invitationColumns+`
 			FROM superuser_invitations i
 			LEFT JOIN superusers s ON s.id = i.invited_by
 			WHERE i.token_hash = $1 FOR UPDATE OF i`, hashToken(token))
-		inv, err := scanInvitation(row)
+		inv, err := scanInvitation(row, rights)
 		if errors.Is(err, sql.ErrNoRows) {
 			return NotFoundf("this invitation link is not valid")
 		}
@@ -311,6 +332,8 @@ func (s *Invitations) Accept(ctx context.Context, token, password string) (*Supe
 		created := tx.QueryRowContext(ctx, `
 			INSERT INTO superusers (email, password_hash, role) VALUES ($1, $2, $3)
 			RETURNING `+superuserColumns, inv.Email, hash, inv.Role)
+		// scanSuperuser rather than the resolving scan: this is inside a
+		// transaction, and that one would take a second pool connection.
 		su, err = scanSuperuser(created)
 		if err != nil {
 			if isUniqueViolation(err) {
@@ -335,6 +358,7 @@ func (s *Invitations) Accept(ctx context.Context, token, password string) (*Supe
 	if err != nil {
 		return nil, nil, err
 	}
+	su.Rights = rights[su.Role]
 
 	sess, err := s.app.superusers.issue(ctx, su.ID)
 	if err != nil {

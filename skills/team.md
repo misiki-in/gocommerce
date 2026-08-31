@@ -9,7 +9,8 @@ description: Use when adding a right, gating a route, changing what a role may d
 
 One enumerated list of rights, three fixed roles drawn from it, and one place
 that decides — [`rights.go`](../rights.go). **Nothing outside that file may
-invent a right.**
+invent a right.** What each role *carries* is the store's to change
+([`roles.go`](../roles.go)); the list itself is not.
 
 ```
 catalog.read      products, variants, categories, collections, media, stock levels
@@ -32,9 +33,46 @@ The rights are coarse on purpose. A right per button is a permission system
 nobody can hold in their head, and the store has no use for "may edit a barcode
 but not a weight".
 
-`roleRights` is a map rather than a set of conditionals so that operator-defined
-roles later mean storing sets in a table and changing one lookup — not finding
-every place a permission is decided.
+The table above is the **default**. `roleRights` being a map rather than a set
+of conditionals is what let M19 make the sets configurable by changing one
+lookup instead of finding every place a permission is decided.
+
+## Re-cutting a role
+
+A store may widen or narrow `manager` and `staff` — Settings → Roles in the
+panel, or:
+
+```http
+GET    /api/admin/roles           # the matrix: every role, the catalogue, the floor
+PUT    /api/admin/roles/{role}    # the whole set the role should carry
+DELETE /api/admin/roles/{role}    # drop the override; the role tracks defaults again
+```
+
+In Go it is `app.Roles()` — `Matrix`, `Of`, `Set`, `Reset`.
+
+Four rules, all enforced in `RoleRights.Set`:
+
+- **Owner is fixed** and always carries every right. It is the way back into a
+  store that has been configured into a corner, so it is not storable at all —
+  the `role_rights` CHECK does not accept it.
+- **Every role keeps `catalog.read`** (`RequiredRights`). A role stripped past
+  the floor is not a narrower role; it is an account that can sign in and see
+  nothing, and removing the person says that honestly.
+- **A set equal to the default is stored as no rows**, so the role goes on
+  tracking a default that a later release may widen. `Reset` is therefore not
+  the same as saving the defaults back — though it lands in the same state.
+- **You cannot remove `settings.write` from your own role.** Owner is immune
+  because it is not configurable; the case that bites is a `manager` who was
+  handed `settings.write`. A static admin token has no role, so it is exempt —
+  and it is what undoes this kind of mistake.
+
+It is deliberately **not** an escalation guard: `settings.write` already means
+"the right that can grant rights", and whoever holds it can promote themselves
+through the team screen anyway. Handing it out is the decision.
+
+`role_rights` has no foreign key to the rights — they live in Go — so a right
+dropped in a later release leaves rows that resolve to nothing. The lookup
+intersects with `AllRights`, which is the safe direction to be wrong in.
 
 ## Gating a route
 
@@ -50,7 +88,10 @@ hundred-percent-off code. `TestEveryAdminRouteDeclaresRights` is the guard, and
 its exemption list is named rather than pattern-matched so that adding one is a
 decision somebody writes down.
 
-`requireRights` runs after authentication and refuses by name
+`requireRights` checks the operator's **resolved** set, not the role's defaults:
+authentication already applied the store's matrix, so the middleware costs no
+query and cannot disagree with what the panel was told. It runs after
+authentication and refuses by name
 (`403 — "your role (staff) does not carry orders.refund"`), because an operator
 told only "forbidden" has to guess, and whoever sets roles needs to know what to
 grant.
@@ -94,8 +135,11 @@ including themselves, and the way back in is a database client.
 
 ## Losing access
 
-A role is read from the row on every request, so **a demotion takes effect on the
-operator's next request** — no waiting for a session to expire. A session has to
+A role is read from the row on every request, and the rights that role carries
+are resolved with it, so **a demotion or a narrowed role takes effect on the
+operator's next request** — no waiting for a session to expire, and nothing to
+revoke. Nothing is cached anywhere, which is the point: a second server holding
+last week's answer to "who may refund" is not a cache, it is a hole. A session has to
 be ended explicitly:
 
 ```http
@@ -130,3 +174,7 @@ teaches them not to.
   only lead to a 403. The engine is what refuses.
 - **Reading a role from a stored session record.** `Resolve` re-reads it per
   request for a reason — see the demotion note above.
+- **Calling `DefaultRightsOf` or `DefaultCan` when you mean what an operator may
+  do.** They answer for the engine's defaults, which in a store that has re-cut
+  the role is the wrong answer. The names are long on purpose; use
+  `(*Superuser).Has` for a request, or `app.Roles().Of` for a role.

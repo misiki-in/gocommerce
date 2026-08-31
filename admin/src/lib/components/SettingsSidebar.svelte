@@ -23,6 +23,8 @@
               right: "settings.write" },
             { href: "/settings/superusers", label: "Team", icon: "ri-group-line",
               right: "settings.write" },
+            { href: "/settings/roles", label: "Roles", icon: "ri-shield-user-line",
+              right: "settings.write" },
             { href: "/settings/account", label: "Your account", icon: "ri-user-settings-line" },
         ],
         Data: [{ href: "/data", label: "Import / export", icon: "ri-file-transfer-line",

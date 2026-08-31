@@ -443,6 +443,7 @@ func (a *App) mountCoreRoutes() {
 	a.mountTaxRoutes()
 	a.mountLocationRoutes()
 	a.mountTeamRoutes()
+	a.mountRoleRoutes()
 	a.mountCartRoutes()
 	a.mountCheckoutRoutes()
 	a.mountOrderRoutes()

@@ -27,6 +27,7 @@ func coreMigrations() []Migration {
 		{ID: "0016_taxes", SQL: migration0016Taxes},
 		{ID: "0017_locations", SQL: migration0017Locations},
 		{ID: "0018_invitations", SQL: migration0018Invitations},
+		{ID: "0019_role_rights", SQL: migration0019RoleRights},
 	}
 }
 
@@ -570,7 +571,7 @@ ALTER TABLE fulfillments
 // password who could do anything. So the column defaults to owner, and an
 // upgrade changes nobody's access. The CHECK is the engine's own list of roles
 // (rights.go) written where the database can enforce it — a role it has never
-// heard of should not be storable, since RightsOf gives an unknown role nothing
+// heard of should not be storable, since an unknown role resolves to nothing
 // and a row like that would lock somebody out with no way to see why.
 const migration0013Roles = `
 ALTER TABLE superusers
@@ -841,4 +842,33 @@ CREATE TABLE superuser_invitations (
 CREATE UNIQUE INDEX superuser_invitations_open
     ON superuser_invitations (email) WHERE accepted_at IS NULL;
 CREATE INDEX superuser_invitations_expiry_idx ON superuser_invitations (expires_at);
+`
+
+// M19 — what a role may do becomes the store's decision.
+//
+// Until now roleRights in rights.go was the whole permission model, and a store
+// that wanted its managers kept away from refunds had to fork the engine. This
+// table holds the store's departures from those defaults; a role with no rows
+// here is a role still tracking the built-in set, which is what makes a later
+// change to the defaults reach the stores that never touched them.
+//
+// Only the roles that can be re-cut are storable. Owner is deliberately absent
+// from the CHECK: it is the recovery path, and the way back into a store that
+// has been configured into a corner must not itself depend on configuration
+// being sane.
+//
+// right_name carries no foreign key, because the rights live in Go and not in a
+// table. A right this engine no longer has leaves a row nothing reads — the
+// lookup intersects with AllRights — and that is the safe direction to be
+// wrong in.
+const migration0019RoleRights = `
+CREATE TABLE role_rights (
+    role       text        NOT NULL CHECK (role IN ('manager', 'staff')),
+    right_name text        NOT NULL CHECK (right_name <> ''),
+    granted_at timestamptz NOT NULL DEFAULT now(),
+    -- SET NULL rather than CASCADE: who widened a role is a fact about the
+    -- past, and it outlives their account. The grant itself still stands.
+    granted_by bigint      REFERENCES superusers (id) ON DELETE SET NULL,
+    PRIMARY KEY (role, right_name)
+);
 `

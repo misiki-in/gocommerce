@@ -37,7 +37,7 @@ func TestAnInvitationIsTheOnlyTimeTheTokenExists(t *testing.T) {
 	}
 	// The role's rights travel with it, so the person sending the link can see
 	// what they are handing over.
-	if len(inv.Rights) != len(RightsOf(RoleManager)) {
+	if len(inv.Rights) != len(DefaultRightsOf(RoleManager)) {
 		t.Errorf("rights = %v, want the manager's", inv.Rights)
 	}
 
@@ -268,7 +268,7 @@ func TestAnOperatorCanChangeTheirOwnPasswordWithoutSettingsWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if Can(RoleStaff, RightSettingsWrite) {
+	if DefaultCan(RoleStaff, RightSettingsWrite) {
 		t.Fatal("staff carries settings.write; this test is checking the wrong thing")
 	}
 
@@ -405,7 +405,7 @@ func TestDemotingSomebodyTakesEffectOnTheirOpenSession(t *testing.T) {
 	if resolved.Role != RoleStaff {
 		t.Errorf("role on the open session = %q, want staff", resolved.Role)
 	}
-	if Can(resolved.Role, RightSettingsWrite) {
+	if DefaultCan(resolved.Role, RightSettingsWrite) {
 		t.Error("the demoted operator still carries settings.write on their open session")
 	}
 }

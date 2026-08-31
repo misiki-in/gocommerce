@@ -70,6 +70,10 @@
     {
       "name": "admin:media",
       "description": "The media library: images, video and 3D models, shared across products."
+    },
+    {
+      "name": "admin:roles",
+      "description": "What each role may do in this store."
     }
   ],
   "security": [],
@@ -5489,6 +5493,182 @@
         }
       }
     },
+    "/api/admin/roles": {
+      "get": {
+        "tags": [
+          "admin:roles"
+        ],
+        "summary": "The store's role/right matrix",
+        "description": "What each role may do here, what the engine ships for it, and the closed list of rights to draw from. Behind settings.write with the writes, because a map of the store's access is of use only to the people who may redraw it — an operator's own rights reach them on their record.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every role, the catalogue, and the floor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleMatrix"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/admin/roles/{role}": {
+      "put": {
+        "tags": [
+          "admin:roles"
+        ],
+        "summary": "Replace what a role may do",
+        "description": "The body is the whole set the role should carry, not a change to it. A set matching the engine's default is stored as no override at all, so the role goes back to tracking it. Refused: the owner role (403), a right this engine does not have (422), a set missing catalog.read (422), and removing settings.write from your own role (403) — which would lock you out of this endpoint with no way back short of a static admin token.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "path",
+            "required": true,
+            "description": "The role to configure. Owner is refused: it always carries every right.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manager",
+                "staff"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "rights"
+                ],
+                "properties": {
+                  "rights": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "catalog.read",
+                        "catalog.write",
+                        "orders.read",
+                        "orders.write",
+                        "orders.refund",
+                        "inventory.write",
+                        "customers.read",
+                        "settings.write"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The role as it now stands. It applies to every affected operator's next request; nobody is signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleSet"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/Validation"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin:roles"
+        ],
+        "summary": "Return a role to the engine's defaults",
+        "description": "Removes the store's override rather than writing the defaults down, so the role tracks them again from here on. Idempotent: a role that was never customised is already in this state.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "path",
+            "required": true,
+            "description": "The role to configure. Owner is refused: it always carries every right.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manager",
+                "staff"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The role, back on its defaults.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleSet"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/Validation"
+          }
+        }
+      }
+    },
     "/api/admin/me": {
       "get": {
         "tags": [
@@ -6110,6 +6290,31 @@
           "email": {
             "type": "string",
             "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "manager",
+              "staff"
+            ]
+          },
+          "rights": {
+            "type": "array",
+            "description": "What this operator may do, resolved through the store's role matrix. The panel hides what it cannot do from this rather than from a copy of the table.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "catalog.read",
+                "catalog.write",
+                "orders.read",
+                "orders.write",
+                "orders.refund",
+                "inventory.write",
+                "customers.read",
+                "settings.write"
+              ]
+            }
           },
           "created_at": {
             "type": "string",
@@ -7840,6 +8045,108 @@
               "expired"
             ],
             "description": "Expiry is a fact about now rather than a column, so it is resolved on the way out."
+          }
+        }
+      },
+      "RoleSet": {
+        "type": "object",
+        "description": "What one role may do in this store, beside what the engine ships for it. A role with no stored override keeps tracking the default, so a right added to a role in a later release reaches every store that never re-cut it.",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "manager",
+              "staff"
+            ]
+          },
+          "rights": {
+            "type": "array",
+            "description": "The effective set: what this role may do here.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "catalog.read",
+                "catalog.write",
+                "orders.read",
+                "orders.write",
+                "orders.refund",
+                "inventory.write",
+                "customers.read",
+                "settings.write"
+              ]
+            }
+          },
+          "default": {
+            "type": "array",
+            "description": "What the engine ships for this role, and what a reset returns to.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "catalog.read",
+                "catalog.write",
+                "orders.read",
+                "orders.write",
+                "orders.refund",
+                "inventory.write",
+                "customers.read",
+                "settings.write"
+              ]
+            }
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether this store has departed from the default."
+          },
+          "configurable": {
+            "type": "boolean",
+            "description": "False for owner, which always carries every right: it is the way back into a store that has been configured into a corner, so it is not storable."
+          }
+        }
+      },
+      "RoleMatrix": {
+        "type": "object",
+        "description": "The whole permission model in one response, so a client renders the grid without keeping its own copy of either axis.",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleSet"
+            }
+          },
+          "all_rights": {
+            "type": "array",
+            "description": "The closed catalogue of rights, in display order.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "catalog.read",
+                "catalog.write",
+                "orders.read",
+                "orders.write",
+                "orders.refund",
+                "inventory.write",
+                "customers.read",
+                "settings.write"
+              ]
+            }
+          },
+          "required": {
+            "type": "array",
+            "description": "What no role can be stripped of. A role without catalog.read can sign in and see nothing, which is a removed operator rather than a narrower one.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "catalog.read",
+                "catalog.write",
+                "orders.read",
+                "orders.write",
+                "orders.refund",
+                "inventory.write",
+                "customers.read",
+                "settings.write"
+              ]
+            }
           }
         }
       }

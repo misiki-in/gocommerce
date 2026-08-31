@@ -296,3 +296,21 @@ export const auth = {
     me: () => api.get("/api/admin/me"),
     updateMe: (body) => api.patch("/api/admin/me", body),
 };
+
+/**
+ * roles is what each role may do in this store.
+ *
+ * The engine ships a default set per role and this is the store's departure
+ * from it, so `save` sends the whole set rather than a change to it — that is
+ * what the screen has in front of the operator — and `reset` removes the
+ * override entirely, which is not the same as saving the defaults back: a role
+ * with no override goes on tracking a default a later release may widen.
+ *
+ * A change lands on each affected operator's next request. Nothing has to be
+ * revoked, and nobody is signed out.
+ */
+export const roles = {
+    matrix: () => api.get("/api/admin/roles"),
+    save: (role, rights) => request("PUT", `/api/admin/roles/${role}`, { body: { rights } }),
+    reset: (role) => api.delete(`/api/admin/roles/${role}`),
+};

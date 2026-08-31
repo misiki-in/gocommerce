@@ -23,7 +23,7 @@ func TestRolesDrawFromTheOneList(t *testing.T) {
 		if !ValidRole(role) {
 			t.Errorf("%q is listed in Roles but ValidRole says no", role)
 		}
-		rights := RightsOf(role)
+		rights := DefaultRightsOf(role)
 		if len(rights) == 0 {
 			t.Errorf("role %q carries nothing", role)
 		}
@@ -36,8 +36,8 @@ func TestRolesDrawFromTheOneList(t *testing.T) {
 
 	// An owner can do everything there is; that is what makes them the role
 	// that can grant roles.
-	if len(RightsOf(RoleOwner)) != len(AllRights) {
-		t.Errorf("owner has %d rights, want all %d", len(RightsOf(RoleOwner)), len(AllRights))
+	if len(DefaultRightsOf(RoleOwner)) != len(AllRights) {
+		t.Errorf("owner has %d rights, want all %d", len(DefaultRightsOf(RoleOwner)), len(AllRights))
 	}
 	// And the ones that separate the roles, spelled out so a change to the
 	// table has to be deliberate.
@@ -56,8 +56,8 @@ func TestRolesDrawFromTheOneList(t *testing.T) {
 		{"nonsense", RightCatalogRead, false},
 	}
 	for _, c := range cases {
-		if got := Can(c.role, c.right); got != c.want {
-			t.Errorf("Can(%q, %q) = %v, want %v", c.role, c.right, got, c.want)
+		if got := DefaultCan(c.role, c.right); got != c.want {
+			t.Errorf("DefaultCan(%q, %q) = %v, want %v", c.role, c.right, got, c.want)
 		}
 	}
 }
@@ -143,7 +143,7 @@ func TestTheLastOwnerCannotBeDemoted(t *testing.T) {
 	if demoted.Role != RoleManager {
 		t.Errorf("role = %q, want manager", demoted.Role)
 	}
-	if len(demoted.Rights) != len(RightsOf(RoleManager)) {
+	if len(demoted.Rights) != len(DefaultRightsOf(RoleManager)) {
 		t.Errorf("the record's rights did not follow the role: %v", demoted.Rights)
 	}
 
@@ -152,8 +152,8 @@ func TestTheLastOwnerCannotBeDemoted(t *testing.T) {
 		t.Error("demoted the last remaining owner")
 	}
 
-	// An unknown role is refused rather than stored, since RightsOf gives one
-	// nothing and the row would lock somebody out silently.
+	// An unknown role is refused rather than stored, since DefaultRightsOf gives
+	// one nothing and the row would lock somebody out silently.
 	if _, err := app.Superusers().SetRole(ctx, second.ID, "wizard"); err == nil {
 		t.Error("stored a role the engine has never heard of")
 	}
@@ -172,7 +172,7 @@ func TestExistingOperatorsBecomeOwners(t *testing.T) {
 	if su.Role != RoleOwner {
 		t.Errorf("the first operator is %q, want owner", su.Role)
 	}
-	if !Can(su.Role, RightSettingsWrite) {
+	if !DefaultCan(su.Role, RightSettingsWrite) {
 		t.Error("the first operator cannot manage the team")
 	}
 }

@@ -65,8 +65,9 @@ type Superuser struct {
 	// Role decides what they may do — see rights.go. Every operator that
 	// existed before roles did is an owner, which is what they were.
 	Role string `json:"role"`
-	// Rights is the role spelled out, so the panel can hide what it cannot do
-	// without keeping its own copy of the table.
+	// Rights is the role spelled out *as this store cut it* (roles.go), so the
+	// panel can hide what it cannot do without keeping its own copy of the
+	// table, and so enforcement and display can never disagree.
 	Rights    []Right   `json:"rights"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -76,13 +77,25 @@ type Superuser struct {
 
 // Superusers is the operator-identity service.
 type Superusers struct {
-	db       *sql.DB
+	db *sql.DB
+	// roles resolves a role into the rights this store gave it. Identity and
+	// authorization are separate services, and this is the seam between them:
+	// every operator this one hands out has been through it.
+	roles    *RoleRights
 	throttle *loginThrottle
 }
 
-func newSuperusers(db *sql.DB) *Superusers {
-	return &Superusers{db: db, throttle: newLoginThrottle()}
+func newSuperusers(db *sql.DB, roles *RoleRights) *Superusers {
+	return &Superusers{db: db, roles: roles, throttle: newLoginThrottle()}
 }
+
+// Has reports whether this operator carries a right.
+//
+// Rights are resolved once, at authentication, so this is the cheap question
+// and the correct one: asking the role again would re-read a table that may
+// have changed mid-request, and would answer for the role rather than for the
+// credential that actually arrived.
+func (s *Superuser) Has(right Right) bool { return slices.Contains(s.Rights, right) }
 
 // ---------------------------------------------------------------- passwords
 
@@ -180,16 +193,42 @@ func validateCredentials(email, password string) error {
 
 const superuserColumns = `id, email, password_hash, role, created_at, updated_at`
 
+// scanSuperuser reads the row and nothing else. It leaves Rights empty, which
+// is why every caller goes through scan or fills them from a resolved map: an
+// operator with no rights is refused everything, so forgetting fails closed.
 func scanSuperuser(row interface{ Scan(...any) error }) (*Superuser, error) {
 	var s Superuser
 	if err := row.Scan(&s.ID, &s.Email, &s.passwordHash, &s.Role, &s.CreatedAt, &s.UpdatedAt); err != nil {
 		return nil, err
 	}
-	// Spelled out on the way out rather than stored: the role is the fact, the
-	// rights are what it currently means, and only one of those belongs in a
-	// row that outlives this version of the table.
-	s.Rights = RightsOf(s.Role)
 	return &s, nil
+}
+
+// scan reads one operator and resolves what their role may do here.
+//
+// Spelled out on the way out rather than stored: the role is the fact, the
+// rights are what it currently means, and only one of those belongs in a row
+// that outlives this version of the table — or this week's matrix.
+//
+// **Never call this inside a transaction.** It takes a second connection from
+// the pool to resolve the rights, and code holding one connection while waiting
+// for another deadlocks the pool the moment enough requests do it at once. A
+// path with a transaction resolves the matrix before opening it and assigns
+// Rights from the map — see Update, UpdateSelf and SetRole.
+//
+// The scan error is returned unwrapped, because callers distinguish
+// sql.ErrNoRows from a real failure.
+func (s *Superusers) scan(ctx context.Context, row interface{ Scan(...any) error }) (*Superuser, error) {
+	su, err := scanSuperuser(row)
+	if err != nil {
+		return nil, err
+	}
+	rights, err := s.roles.Of(ctx, su.Role)
+	if err != nil {
+		return nil, err
+	}
+	su.Rights = rights
+	return su, nil
 }
 
 // Create adds a superuser in a role. An empty role means owner, which is what
@@ -211,7 +250,7 @@ func (s *Superusers) Create(ctx context.Context, email, password, role string) (
 	row := s.db.QueryRowContext(ctx, `
 		INSERT INTO superusers (email, password_hash, role) VALUES ($1, $2, $3)
 		RETURNING `+superuserColumns, normalizeEmail(email), hash, role)
-	su, err := scanSuperuser(row)
+	su, err := s.scan(ctx, row)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return nil, Conflictf("a superuser with email %q already exists", normalizeEmail(email))
@@ -223,6 +262,12 @@ func (s *Superusers) Create(ctx context.Context, email, password, role string) (
 
 // List returns every superuser, oldest first.
 func (s *Superusers) List(ctx context.Context) ([]*Superuser, error) {
+	// Every role resolved once rather than per row: the team screen would
+	// otherwise ask the same question of the same table once per person.
+	rights, err := s.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT `+superuserColumns+` FROM superusers ORDER BY id`)
 	if err != nil {
 		return nil, Internalf(err, "list superusers")
@@ -235,6 +280,7 @@ func (s *Superusers) List(ctx context.Context) ([]*Superuser, error) {
 		if err != nil {
 			return nil, Internalf(err, "scan superuser")
 		}
+		su.Rights = rights[su.Role]
 		out = append(out, su)
 	}
 	if err := rows.Err(); err != nil {
@@ -281,8 +327,14 @@ func (s *Superusers) Update(ctx context.Context, id int64, email, password strin
 	sets = append(sets, "updated_at = now()")
 	args = append(args, id)
 
+	// Resolved before the transaction opens: see the note on scan.
+	rights, err := s.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var su *Superuser
-	err := InTx(ctx, s.db, func(tx *sql.Tx) error {
+	err = InTx(ctx, s.db, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx, `UPDATE superusers SET `+strings.Join(sets, ", ")+
 			fmt.Sprintf(" WHERE id = $%d RETURNING ", len(args))+superuserColumns, args...)
 		var err error
@@ -306,6 +358,7 @@ func (s *Superusers) Update(ctx context.Context, id int64, email, password strin
 	if err != nil {
 		return nil, err
 	}
+	su.Rights = rights[su.Role]
 	return su, nil
 }
 
@@ -422,8 +475,13 @@ func (s *Superusers) UpdateSelf(ctx context.Context, id int64, currentPassword, 
 	sets = append(sets, "updated_at = now()")
 	args = append(args, id)
 
+	rights, err := s.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var su *Superuser
-	err := InTx(ctx, s.db, func(tx *sql.Tx) error {
+	err = InTx(ctx, s.db, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
 			`SELECT `+superuserColumns+` FROM superusers WHERE id = $1 FOR UPDATE`, id)
 		current, err := scanSuperuser(row)
@@ -460,6 +518,7 @@ func (s *Superusers) UpdateSelf(ctx context.Context, id int64, currentPassword, 
 	if err != nil {
 		return nil, err
 	}
+	su.Rights = rights[su.Role]
 	return su, nil
 }
 
@@ -594,7 +653,7 @@ func (s *Superusers) Authenticate(ctx context.Context, identity, password, clien
 
 	row := s.db.QueryRowContext(ctx,
 		`SELECT `+superuserColumns+` FROM superusers WHERE email = $1`, identity)
-	su, err := scanSuperuser(row)
+	su, err := s.scan(ctx, row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			s.dummyVerify(ctx, password)
@@ -647,7 +706,7 @@ func (s *Superusers) Resolve(ctx context.Context, token string) (*Superuser, boo
 		FROM superuser_sessions ss
 		JOIN superusers s ON s.id = ss.superuser_id
 		WHERE ss.token_hash = $1 AND ss.expires_at > now()`, hashToken(token))
-	su, err := scanSuperuser(row)
+	su, err := s.scan(ctx, row)
 	if err != nil {
 		return nil, false
 	}
@@ -839,8 +898,13 @@ func (s *Superusers) SetRole(ctx context.Context, id int64, role string) (*Super
 			role, strings.Join(Roles, ", "))
 	}
 
+	rights, err := s.roles.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var su *Superuser
-	err := InTx(ctx, s.db, func(tx *sql.Tx) error {
+	err = InTx(ctx, s.db, func(tx *sql.Tx) error {
 		// Locked and counted in the same transaction as the write, or two
 		// requests demoting the two remaining owners both pass the check.
 		// The owner rows are locked and then counted, rather than counted with
@@ -886,5 +950,6 @@ func (s *Superusers) SetRole(ctx context.Context, id int64, role string) (*Super
 	if err != nil {
 		return nil, err
 	}
+	su.Rights = rights[su.Role]
 	return su, nil
 }

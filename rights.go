@@ -13,10 +13,10 @@ import (
 // list of rights.
 //
 // The list is the point. Every right this engine knows about is declared here
-// and nowhere else, and a role is a set drawn from it — so adding operator-
-// defined roles later is a matter of storing sets somewhere instead of reading
-// them from `roleRights`, not of finding every place a permission is decided.
-// Nothing outside this file may invent a right.
+// and nowhere else, and a role is a set drawn from it. That is what let M19 make
+// the sets configurable (roles.go) by changing one lookup rather than by finding
+// every place a permission is decided. Nothing outside this file may invent a
+// right, and roles.go may re-cut the sets but never widen the list.
 
 // Right is one thing an operator may be allowed to do.
 type Right string
@@ -82,11 +82,13 @@ const (
 // Roles is every role, in the order they are worth showing: most able first.
 var Roles = []string{RoleOwner, RoleManager, RoleStaff}
 
-// roleRights is the whole permission model.
+// roleRights is the default permission model: what each role carries in a store
+// that has never said otherwise.
 //
-// When custom roles arrive, this map becomes the seed of a table and the lookup
-// below reads that table instead. Nothing else has to move, which is the reason
-// it is expressed as data rather than as conditionals.
+// It is no longer the last word. A store may re-cut manager and staff through
+// `role_rights` (roles.go), and the effective set is what every request is
+// judged against. This map stays the seed: a role with no stored override
+// tracks it, so widening a default reaches every store that never touched it.
 var roleRights = map[string][]Right{
 	RoleOwner: AllRights,
 	RoleManager: {
@@ -108,17 +110,23 @@ func ValidRole(role string) bool {
 	return ok
 }
 
-// RightsOf returns what a role may do, sorted so the answer is stable enough to
-// compare and to show. An unknown role gets nothing rather than everything,
-// which is the safe direction to be wrong in.
-func RightsOf(role string) []Right {
+// DefaultRightsOf returns what a role carries before the store has changed
+// anything, sorted so the answer is stable enough to compare and to show. An
+// unknown role gets nothing rather than everything, which is the safe direction
+// to be wrong in.
+//
+// This is the default and not the answer. What an operator may actually do is
+// `app.Roles().Of(ctx, role)`, which applies the store's overrides — the name
+// here is long precisely so that reaching for it by accident is hard.
+func DefaultRightsOf(role string) []Right {
 	rights := append([]Right(nil), roleRights[role]...)
 	sort.Slice(rights, func(i, j int) bool { return rights[i] < rights[j] })
 	return rights
 }
 
-// Can reports whether a role carries a right.
-func Can(role string, right Right) bool {
+// DefaultCan reports whether a role carries a right by default. To ask what a
+// signed-in operator may do, use their resolved rights: (*Superuser).Has.
+func DefaultCan(role string, right Right) bool {
 	for _, r := range roleRights[role] {
 		if r == right {
 			return true
@@ -126,6 +134,28 @@ func Can(role string, right Right) bool {
 	}
 	return false
 }
+
+// RoleConfigurable reports whether a store may re-cut a role.
+//
+// Owner cannot be, and that is the whole of the safety net under this feature:
+// an owner always holds every right, so a store that configures itself into a
+// corner still has somebody who can configure it back out. `role_rights` will
+// not even store a row for it.
+func RoleConfigurable(role string) bool {
+	return ValidRole(role) && role != RoleOwner
+}
+
+// RequiredRights is the floor: what every role keeps, however it is cut.
+//
+// Only catalog.read, and for the reason already given above — an operator who
+// cannot see the catalog cannot do anything else either, so a role stripped
+// past this point is not a narrower role, it is an account that can sign in and
+// see nothing. Removing the person says that honestly; a role that grants
+// nothing says it by accident.
+//
+// It also makes the storage unambiguous: no rows for a role means "tracking the
+// defaults" and can never also mean "customised down to nothing".
+var RequiredRights = []Right{RightCatalogRead}
 
 // ------------------------------------------------------------- enforcement
 
@@ -150,7 +180,10 @@ func requireRights(rights ...Right) func(http.Handler) http.Handler {
 				return
 			}
 			for _, right := range rights {
-				if !Can(su.Role, right) {
+				// The operator's own resolved set, not the role's defaults:
+				// authentication already applied the store's overrides, so this
+				// costs nothing and cannot disagree with what the panel was told.
+				if !su.Has(right) {
 					// Which right, by name: an operator told only "forbidden"
 					// has to guess, and the person who can fix it — whoever set
 					// the role — needs to know what to grant.
