@@ -1,0 +1,21 @@
+# Keep the build context to what the image is actually made of.
+.git
+.github
+
+# Built here, not copied in: the panel stage runs npm ci itself.
+admin/node_modules
+admin/.svelte-kit
+
+# Local build output. `admin/build` is deliberately NOT ignored — the Go build
+# embeds it, and the panel stage overwrites it with a fresh one.
+*.exe
+*.exe~
+gocommerce
+tmp/
+
+# Nothing the running store reads.
+docs/
+skills/
+examples/
+scripts/
+*.md

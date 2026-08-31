@@ -1,0 +1,50 @@
+# A whole store: the engine and its database.
+#
+#   docker compose up --build
+#
+# On Dokploy this is a Compose service. Set the variables below in the panel's
+# Environment tab rather than committing them — POSTGRES_PASSWORD and
+# GOCOMMERCE_ADMIN_TOKEN are secrets, and the admin password is used once.
+
+services:
+  gocommerce:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://gocommerce:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/gocommerce?sslmode=disable
+      # The credential scripts use. A person signs in with the email and
+      # password below instead; the engine accepts either on the same routes.
+      GOCOMMERCE_ADMIN_TOKEN: ${GOCOMMERCE_ADMIN_TOKEN:?set GOCOMMERCE_ADMIN_TOKEN}
+      # Creates the first operator, and only while there is none — so leaving
+      # these set does not reset a password on every restart.
+      GOCOMMERCE_ADMIN_EMAIL: ${GOCOMMERCE_ADMIN_EMAIL:-admin@example.com}
+      GOCOMMERCE_ADMIN_PASSWORD: ${GOCOMMERCE_ADMIN_PASSWORD:?set GOCOMMERCE_ADMIN_PASSWORD}
+    volumes:
+      - media:/data/media
+    ports:
+      - "${PORT:-8080}:8080"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gocommerce
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: gocommerce
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The engine applies its migrations on boot, so it must not start against
+      # a database that is still initialising.
+      test: ["CMD-SHELL", "pg_isready -U gocommerce -d gocommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  media:
+  pgdata:

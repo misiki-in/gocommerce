@@ -61,6 +61,32 @@ connections, in-flight requests finish (up to 20 seconds), `OnStop` hooks run
 in reverse order, and the database pool closes. `ListenAndServe` returns nil
 after a clean shutdown, so any non-nil error is genuinely fatal.
 
+### In a container
+
+[`Dockerfile`](../Dockerfile) builds the panel from source, then a static binary,
+into a distroless image that runs as a non-root user — one file, no libc, no
+shell. [`docker-compose.yml`](../docker-compose.yml) adds PostgreSQL and a volume
+for uploads:
+
+```sh
+POSTGRES_PASSWORD=... GOCOMMERCE_ADMIN_TOKEN=... GOCOMMERCE_ADMIN_PASSWORD=...   docker compose up --build
+```
+
+Three things are worth knowing before it runs somewhere that matters:
+
+- **`GOCOMMERCE_ADMIN_EMAIL` and `GOCOMMERCE_ADMIN_PASSWORD` create the first
+  operator, and only while there is none.** Leaving them set does not reset a
+  password on every restart, and it does not create a second operator.
+- **The media volume is seeded from the image**, which is why `/data/media` is
+  created in the build with the right ownership. Mount a volume there or uploads
+  live only as long as the container.
+- **There is no `HEALTHCHECK`**: the image has no shell to run one with. Point
+  the proxy at `GET /health`, as below.
+
+On a PaaS that builds from a Git repository — Dokploy, Coolify, Railway — point
+it at the compose file and set the same variables in its own environment tab
+rather than committing them.
+
 ### Running several instances
 
 Nothing has to change. The outbox dispatcher claims rows with `FOR UPDATE SKIP
