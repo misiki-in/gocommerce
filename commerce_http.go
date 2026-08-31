@@ -171,13 +171,13 @@ func (a *App) mountOrderRoutes() {
 	a.HandleAdminFunc("POST /api/admin/orders/{id}/undeliver", a.handleUndeliver, RightOrdersWrite)
 	a.HandleAdminFunc("PATCH /api/admin/orders/{id}", a.handleUpdateOrder, RightOrdersWrite)
 	a.HandleAdminFunc("PUT /api/admin/orders/{id}/lines", a.handleEditOrderLines, RightOrdersWrite)
-	a.HandleAdminFunc("POST /api/admin/create-fulfillment", a.handleCreateFulfillment, RightOrdersWrite)
-	a.HandleAdminFunc("PATCH /api/admin/fulfillments/{id}", a.handleUpdateFulfillment, RightOrdersWrite)
-	a.HandleAdminFunc("DELETE /api/admin/fulfillments/{id}", a.handleDeleteFulfillment, RightOrdersWrite)
+	a.HandleAdminFunc("POST /api/admin/create-fulfillment", a.handleCreateFulfillment, RightOrdersFulfill)
+	a.HandleAdminFunc("PATCH /api/admin/fulfillments/{id}", a.handleUpdateFulfillment, RightOrdersFulfill)
+	a.HandleAdminFunc("DELETE /api/admin/fulfillments/{id}", a.handleDeleteFulfillment, RightOrdersFulfill)
 	a.HandleAdminFunc("GET /api/admin/carriers", a.handleListCarriers, RightOrdersRead)
 
 	a.HandleAdminFunc("POST /api/admin/variants/{id}/inventory", a.handleAdjustInventory, RightInventoryWrite)
-	a.HandleAdminFunc("GET /api/admin/inventory/low-stock", a.handleLowStock, RightCatalogRead)
+	a.HandleAdminFunc("GET /api/admin/inventory/low-stock", a.handleLowStock, RightInventoryRead)
 }
 
 func (a *App) handleGuestOrder(w http.ResponseWriter, r *http.Request) {

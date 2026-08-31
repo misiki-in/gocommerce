@@ -400,7 +400,7 @@ func (s *Superusers) Delete(ctx context.Context, id int64) error {
 
 		// The same lockout SetRole refuses, reached through a different door.
 		// Removing the only owner leaves a team where nobody carries
-		// settings.write, and settings.write is the only right that can hand
+		// team.write, and team.write is the only right that can hand
 		// out roles — so the survivors cannot promote anybody, including
 		// themselves, and the way back in is a database client. Deleting is not
 		// gentler than demoting; it is the same door.
@@ -433,7 +433,7 @@ func (s *Superusers) Delete(ctx context.Context, id int64) error {
 // UpdateSelf changes an operator's own email or password.
 //
 // It exists because the alternative is that changing your own password needs
-// settings.write — the right that can also change everybody else's role. A
+// team.write — the right that can also change everybody else's role. A
 // staff member who suspects their password is known would otherwise have to ask
 // an owner to choose a new one for them, which is the practice invitations
 // exist to end.
@@ -888,7 +888,7 @@ func clientIP(r *http.Request) string {
 // SetRole changes what an operator may do.
 //
 // The one rule: a store keeps at least one owner. Owner is the only role that
-// carries settings.write, and settings.write is the only right that can hand
+// carries team.write, and team.write is the only right that can hand
 // out roles — so demoting the last one locks every remaining person out of the
 // team screen with no way back in short of the database. Refusing is the whole
 // of the protection; there is nothing else to check.

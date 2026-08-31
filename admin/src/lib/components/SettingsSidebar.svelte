@@ -13,28 +13,36 @@
     import { can } from "$lib/api.js";
 
     /*
-     * `right` gates the link, exactly as the main nav does. Your own account
-     * has none: every operator reaches it, which is the whole reason it is a
-     * separate screen from the team.
+     * `right` gates the link, exactly as the main nav does. Two of them have
+     * none. Your own account: every operator reaches it, which is the whole
+     * reason it is a separate screen from the team. And Store, which reads the
+     * store's own currency, languages and providers from public endpoints —
+     * there is nothing there to gate.
+     *
+     * Import / export takes either half: the screen offers both and shows only
+     * the half you carry, so requiring both to reach it would hide it from the
+     * person who may do one of them.
      */
     const groups = {
         System: [
-            { href: "/settings", label: "Store", icon: "ri-home-gear-line", exact: true,
-              right: "settings.write" },
+            { href: "/settings", label: "Store", icon: "ri-home-gear-line", exact: true },
             { href: "/settings/superusers", label: "Team", icon: "ri-group-line",
-              right: "settings.write" },
+              right: "team.read" },
             { href: "/settings/roles", label: "Roles", icon: "ri-shield-user-line",
-              right: "settings.write" },
+              right: "roles.write" },
             { href: "/settings/account", label: "Your account", icon: "ri-user-settings-line" },
         ],
         Data: [{ href: "/data", label: "Import / export", icon: "ri-file-transfer-line",
-                 right: "settings.write" }],
+                 anyOf: ["data.export", "data.import"] }],
     };
 
     /** A group with nothing left in it should not render its heading either. */
+    const allowed = (l) =>
+        (!l.right || can(l.right)) && (!l.anyOf || l.anyOf.some((r) => can(r)));
+
     const visible = $derived(
         Object.entries(groups)
-            .map(([name, links]) => [name, links.filter((l) => !l.right || can(l.right))])
+            .map(([name, links]) => [name, links.filter(allowed)])
             .filter(([, links]) => links.length),
     );
 

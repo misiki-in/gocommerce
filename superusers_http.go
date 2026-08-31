@@ -18,11 +18,11 @@ func (a *App) mountSuperuserRoutes() {
 	a.HandleAdminFunc("POST /api/admin/auth-refresh", a.handleAuthRefresh)
 	a.HandleAdminFunc("POST /api/admin/auth-logout", a.handleAuthLogout)
 
-	a.HandleAdminFunc("GET /api/admin/superusers", a.handleListSuperusers, RightSettingsWrite)
-	a.HandleAdminFunc("POST /api/admin/superusers", a.handleCreateSuperuser, RightSettingsWrite)
-	a.HandleAdminFunc("PATCH /api/admin/superusers/{id}", a.handleUpdateSuperuser, RightSettingsWrite)
-	a.HandleAdminFunc("PUT /api/admin/superusers/{id}/role", a.handleSetRole, RightSettingsWrite)
-	a.HandleAdminFunc("DELETE /api/admin/superusers/{id}", a.handleDeleteSuperuser, RightSettingsWrite)
+	a.HandleAdminFunc("GET /api/admin/superusers", a.handleListSuperusers, RightTeamRead)
+	a.HandleAdminFunc("POST /api/admin/superusers", a.handleCreateSuperuser, RightTeamWrite)
+	a.HandleAdminFunc("PATCH /api/admin/superusers/{id}", a.handleUpdateSuperuser, RightTeamWrite)
+	a.HandleAdminFunc("PUT /api/admin/superusers/{id}/role", a.handleSetRole, RightTeamWrite)
+	a.HandleAdminFunc("DELETE /api/admin/superusers/{id}", a.handleDeleteSuperuser, RightTeamWrite)
 }
 
 // authResponse is what a successful sign-in returns: the credential and the

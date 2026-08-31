@@ -7,14 +7,14 @@ func (a *App) mountTaxRoutes() {
 	// order costs, which already has the tax in the answer.
 	//
 	// Reading a rate comes with the catalog, because it is what a product is
-	// charged at. Writing one is settings.write: a tax rate is a claim about
+	// charged at. Writing one is taxes.write: a tax rate is a claim about
 	// the law, it is what an invoice is defended with, and it is not something
 	// the person running this week's promotion should be able to change.
-	a.HandleAdminFunc("GET /api/admin/tax-rates", a.handleListTaxRates, RightCatalogRead)
-	a.HandleAdminFunc("POST /api/admin/tax-rates", a.handleCreateTaxRate, RightSettingsWrite)
-	a.HandleAdminFunc("GET /api/admin/tax-rates/{id}", a.handleGetTaxRate, RightCatalogRead)
-	a.HandleAdminFunc("PATCH /api/admin/tax-rates/{id}", a.handleUpdateTaxRate, RightSettingsWrite)
-	a.HandleAdminFunc("DELETE /api/admin/tax-rates/{id}", a.handleDeleteTaxRate, RightSettingsWrite)
+	a.HandleAdminFunc("GET /api/admin/tax-rates", a.handleListTaxRates, RightTaxesRead)
+	a.HandleAdminFunc("POST /api/admin/tax-rates", a.handleCreateTaxRate, RightTaxesWrite)
+	a.HandleAdminFunc("GET /api/admin/tax-rates/{id}", a.handleGetTaxRate, RightTaxesRead)
+	a.HandleAdminFunc("PATCH /api/admin/tax-rates/{id}", a.handleUpdateTaxRate, RightTaxesWrite)
+	a.HandleAdminFunc("DELETE /api/admin/tax-rates/{id}", a.handleDeleteTaxRate, RightTaxesWrite)
 }
 
 func (a *App) handleListTaxRates(w http.ResponseWriter, r *http.Request) {

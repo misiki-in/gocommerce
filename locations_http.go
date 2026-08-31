@@ -8,20 +8,20 @@ func (a *App) mountLocationRoutes() {
 	// the business, not about their order.
 	//
 	// Reading comes with the catalog, because "where is this" is a question
-	// about a product. Writing is settings.write — opening and closing places
+	// about a product. Writing is locations.write — opening and closing places
 	// redirects every future reservation in the store, which is a different
 	// kind of act from adjusting a count.
-	a.HandleAdminFunc("GET /api/admin/locations", a.handleListLocations, RightCatalogRead)
-	a.HandleAdminFunc("POST /api/admin/locations", a.handleCreateLocation, RightSettingsWrite)
-	a.HandleAdminFunc("GET /api/admin/locations/{id}", a.handleGetLocation, RightCatalogRead)
-	a.HandleAdminFunc("PATCH /api/admin/locations/{id}", a.handleUpdateLocation, RightSettingsWrite)
-	a.HandleAdminFunc("DELETE /api/admin/locations/{id}", a.handleDeleteLocation, RightSettingsWrite)
-	a.HandleAdminFunc("POST /api/admin/locations/{id}/default", a.handleSetDefaultLocation, RightSettingsWrite)
+	a.HandleAdminFunc("GET /api/admin/locations", a.handleListLocations, RightLocationsRead)
+	a.HandleAdminFunc("POST /api/admin/locations", a.handleCreateLocation, RightLocationsWrite)
+	a.HandleAdminFunc("GET /api/admin/locations/{id}", a.handleGetLocation, RightLocationsRead)
+	a.HandleAdminFunc("PATCH /api/admin/locations/{id}", a.handleUpdateLocation, RightLocationsWrite)
+	a.HandleAdminFunc("DELETE /api/admin/locations/{id}", a.handleDeleteLocation, RightLocationsWrite)
+	a.HandleAdminFunc("POST /api/admin/locations/{id}/default", a.handleSetDefaultLocation, RightLocationsWrite)
 
 	// Where one variant's stock is, and moving it. Both are inventory.write
-	// rather than settings.write: a transfer changes counts, which is exactly
+	// rather than locations.write: a transfer changes counts, which is exactly
 	// what the person doing the stock take is trusted to do.
-	a.HandleAdminFunc("GET /api/admin/variants/{id}/stock", a.handleVariantStock, RightCatalogRead)
+	a.HandleAdminFunc("GET /api/admin/variants/{id}/stock", a.handleVariantStock, RightInventoryRead)
 	a.HandleAdminFunc("POST /api/admin/variants/{id}/stock/transfer", a.handleTransferStock, RightInventoryWrite)
 }
 

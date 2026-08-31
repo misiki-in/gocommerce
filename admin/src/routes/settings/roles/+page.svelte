@@ -40,22 +40,41 @@
      * to already know what it covers.
      */
     const RIGHT_TEXT = {
-        "catalog.read": "Products, variants, categories, collections, media, stock levels",
+        "catalog.read": "Products, variants, categories, collections, media",
         "catalog.write": "Editing any of them",
-        "orders.read": "Seeing orders and what customers bought",
-        "orders.write": "Fulfilling, editing and placing orders",
+        "inventory.read": "Stock levels and the low-stock report",
+        "inventory.write": "Stock takes, adjustments and transfers",
+        "discounts.read": "Discount codes and what they take off",
+        "discounts.write": "Creating, editing and ending discounts",
+        "taxes.read": "The tax rates orders are charged at",
+        "taxes.write": "Changing what every future order collects",
+        "locations.read": "The places stock lives",
+        "locations.write": "Opening, closing and choosing the default",
+        "orders.read": "Orders and what customers bought",
+        "orders.write": "Placing, editing, cancelling, settling payment",
+        "orders.fulfill": "Fulfilling and shipping",
         "orders.refund": "Sending money back out of the store",
-        "inventory.write": "Stock takes and adjustments",
         "customers.read": "Orders grouped by who placed them — personal data",
-        "settings.write": "The store's settings, the team, and import / export",
+        "team.read": "Who is on the team, and who has been invited",
+        "team.write": "Inviting, removing and changing roles",
+        "roles.write": "This screen — what each role may do",
+        "data.export": "The catalog or every order, as a file",
+        "data.import": "Changing prices and stock in bulk, from a file",
     };
 
     const GROUPS = [
         { title: "Catalog", rights: ["catalog.read", "catalog.write"] },
-        { title: "Orders", rights: ["orders.read", "orders.write", "orders.refund"] },
-        { title: "Inventory", rights: ["inventory.write"] },
+        { title: "Inventory", rights: ["inventory.read", "inventory.write"] },
+        { title: "Discounts", rights: ["discounts.read", "discounts.write"] },
+        { title: "Tax", rights: ["taxes.read", "taxes.write"] },
+        { title: "Locations", rights: ["locations.read", "locations.write"] },
+        {
+            title: "Orders",
+            rights: ["orders.read", "orders.write", "orders.fulfill", "orders.refund"],
+        },
         { title: "Customers", rights: ["customers.read"] },
-        { title: "Settings", rights: ["settings.write"] },
+        { title: "Team and access", rights: ["team.read", "team.write", "roles.write"] },
+        { title: "Data", rights: ["data.export", "data.import"] },
     ];
 
     /** The groups, filtered to what this engine actually has, plus anything it
@@ -101,7 +120,7 @@
      */
     const required = $derived(matrix?.required ?? []);
     const locked = (role, right) =>
-        required.includes(right) || (role === me?.role && right === "settings.write");
+        required.includes(right) || (role === me?.role && right === "roles.write");
 
     const lockReason = (role, right) =>
         required.includes(right)

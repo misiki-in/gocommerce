@@ -134,18 +134,17 @@ func (r *RoleRights) All(ctx context.Context) (map[string][]Right, error) {
 // Set replaces what a role may do.
 //
 // The guards, in order: owner is fixed; only rights this engine has are
-// accepted; the floor is kept; and nobody removes settings.write from their own
+// accepted; the floor is kept; and nobody removes roles.write from their own
 // role. The last one is the same rule the panel draws locked — an operator who
 // saves their way out of the roles screen has no way back in short of a
 // database client, and the mistake is one keystroke away from being made by
 // somebody who was only tidying up.
 //
-// It is *not* an escalation guard: a manager granted settings.write can widen
-// their own role, or make themselves an owner outright through the team screen.
-// That is what settings.write already means — "the right that can grant rights"
-// — and pretending otherwise here would be a check that reads like a boundary
-// without being one. Handing it out is the decision; this is not the place to
-// second-guess it.
+// It is *not* an escalation guard: a role holding roles.write can widen itself,
+// and one holding team.write can hand out the owner role outright. Those two
+// rights are what granting access *is*, and a check here that reads like a
+// boundary without being one would be worse than none. Handing them out is the
+// decision; this is not the place to second-guess it.
 //
 // by is the operator making the change, or nil for a static admin token, which
 // has no role to lock itself out of.
@@ -173,10 +172,10 @@ func (r *RoleRights) Set(ctx context.Context, role string, rights []Right, by *S
 					"which is a removed operator rather than a narrower one", required)
 		}
 	}
-	if by != nil && by.Role == role && !slices.Contains(clean, RightSettingsWrite) {
+	if by != nil && by.Role == role && !slices.Contains(clean, RightRolesWrite) {
 		return nil, Forbiddenf(
 			"this is your own role, and removing %s from it would lock you out of this screen",
-			RightSettingsWrite)
+			RightRolesWrite)
 	}
 	sort.Slice(clean, func(i, j int) bool { return clean[i] < clean[j] })
 

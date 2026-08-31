@@ -7,10 +7,10 @@ import (
 )
 
 func (a *App) mountTransferRoutes() {
-	a.HandleAdminFunc("GET /api/admin/export/admin-products", a.handleExportProducts, RightSettingsWrite)
-	a.HandleAdminFunc("POST /api/admin/import/products", a.handleImportProducts, RightSettingsWrite)
-	a.HandleAdminFunc("GET /api/admin/export/admin-orders", a.handleExportOrders, RightSettingsWrite)
-	a.HandleAdminFunc("POST /api/admin/import/orders", a.handleImportOrders, RightSettingsWrite)
+	a.HandleAdminFunc("GET /api/admin/export/admin-products", a.handleExportProducts, RightDataExport)
+	a.HandleAdminFunc("POST /api/admin/import/products", a.handleImportProducts, RightDataImport)
+	a.HandleAdminFunc("GET /api/admin/export/admin-orders", a.handleExportOrders, RightDataExport)
+	a.HandleAdminFunc("POST /api/admin/import/orders", a.handleImportOrders, RightDataImport)
 }
 
 func (a *App) handleExportProducts(w http.ResponseWriter, r *http.Request) {

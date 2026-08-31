@@ -48,7 +48,18 @@ func TestRolesDrawFromTheOneList(t *testing.T) {
 	}{
 		{RoleManager, RightCatalogWrite, true},
 		{RoleManager, RightOrdersRefund, true},
-		{RoleManager, RightSettingsWrite, false},
+		{RoleManager, RightTeamWrite, false},
+		{RoleManager, RightRolesWrite, false},
+		{RoleManager, RightTaxesWrite, false},
+		{RoleManager, RightDataExport, false},
+		// Growing the catalogue must not have narrowed anybody: these are
+		// what catalog.read and orders.write used to cover.
+		{RoleManager, RightDiscountsWrite, true},
+		{RoleStaff, RightTaxesRead, true},
+		{RoleStaff, RightLocationsRead, true},
+		{RoleStaff, RightInventoryRead, true},
+		{RoleStaff, RightOrdersFulfill, true},
+		{RoleStaff, RightDiscountsWrite, false},
 		{RoleStaff, RightOrdersWrite, true},
 		{RoleStaff, RightOrdersRefund, false},
 		{RoleStaff, RightCatalogWrite, false},
@@ -93,6 +104,8 @@ func TestRightsAreEnforcedOnAdminRoutes(t *testing.T) {
 		path   string
 		want   int
 	}{
+		// A 400 here means the right was carried and the empty body was not: the
+		// request reached the handler, which is what these cases are asking.
 		{"staff may read the catalog", staff, "GET", "/api/admin/products", 200},
 		{"staff may read orders", staff, "GET", "/api/admin/orders", 200},
 		{"staff may not write the catalog", staff, "POST", "/api/admin/products", 403},
@@ -101,6 +114,25 @@ func TestRightsAreEnforcedOnAdminRoutes(t *testing.T) {
 		{"manager may not see the team", manager, "GET", "/api/admin/superusers", 403},
 		{"owner may see the team", owner, "GET", "/api/admin/superusers", 200},
 		{"a static token may do anything", testAdminToken, "GET", "/api/admin/superusers", 200},
+
+		// The lines the eight-right version could not draw. Each of these was
+		// impossible to express before: discounts rode on catalog.write, tax
+		// rates on settings.write, and the roles matrix on the same right as
+		// the team.
+		{"staff may see discounts", staff, "GET", "/api/admin/discounts", 200},
+		{"staff may not write discounts", staff, "POST", "/api/admin/discounts", 403},
+		{"manager may write discounts", manager, "POST", "/api/admin/discounts", 400},
+		{"staff may see tax rates", staff, "GET", "/api/admin/tax-rates", 200},
+		{"manager may not write tax rates", manager, "POST", "/api/admin/tax-rates", 403},
+		{"owner may write tax rates", owner, "POST", "/api/admin/tax-rates", 400},
+		{"manager may not write locations", manager, "POST", "/api/admin/locations", 403},
+		{"staff may fulfil", staff, "POST", "/api/admin/create-fulfillment", 400},
+		{"staff may not refund", staff, "POST", "/api/admin/orders/1/refund", 403},
+		{"manager may not read the roles matrix", manager, "GET", "/api/admin/roles", 403},
+		{"owner may read the roles matrix", owner, "GET", "/api/admin/roles", 200},
+		{"manager may not export the catalog", manager, "GET", "/api/admin/export/admin-products", 403},
+		{"manager may not import", manager, "POST", "/api/admin/import/products", 403},
+		{"owner may export", owner, "GET", "/api/admin/export/admin-products", 200},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -172,7 +204,7 @@ func TestExistingOperatorsBecomeOwners(t *testing.T) {
 	if su.Role != RoleOwner {
 		t.Errorf("the first operator is %q, want owner", su.Role)
 	}
-	if !DefaultCan(su.Role, RightSettingsWrite) {
+	if !DefaultCan(su.Role, RightTeamWrite) {
 		t.Error("the first operator cannot manage the team")
 	}
 }

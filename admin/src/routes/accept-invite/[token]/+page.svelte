@@ -78,12 +78,24 @@
     const RIGHT_LABELS = {
         "catalog.read": "See the catalog",
         "catalog.write": "Edit products and categories",
-        "orders.read": "See orders",
-        "orders.write": "Fulfil and edit orders",
-        "orders.refund": "Refund money",
+        "inventory.read": "See stock levels",
         "inventory.write": "Adjust stock",
+        "discounts.read": "See discounts",
+        "discounts.write": "Create and edit discounts",
+        "taxes.read": "See tax rates",
+        "taxes.write": "Edit tax rates",
+        "locations.read": "See locations",
+        "locations.write": "Edit locations",
+        "orders.read": "See orders",
+        "orders.write": "Place, edit and cancel orders",
+        "orders.fulfill": "Fulfil and ship orders",
+        "orders.refund": "Refund money",
         "customers.read": "See customers",
-        "settings.write": "Change settings and the team",
+        "team.read": "See the team",
+        "team.write": "Invite and manage the team",
+        "roles.write": "Change what each role may do",
+        "data.export": "Export the catalog and orders",
+        "data.import": "Import the catalog and orders",
     };
 </script>
 

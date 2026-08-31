@@ -268,8 +268,8 @@ func TestAnOperatorCanChangeTheirOwnPasswordWithoutSettingsWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if DefaultCan(RoleStaff, RightSettingsWrite) {
-		t.Fatal("staff carries settings.write; this test is checking the wrong thing")
+	if DefaultCan(RoleStaff, RightTeamWrite) {
+		t.Fatal("staff carries team.write; this test is checking the wrong thing")
 	}
 
 	_, sess, err := app.Superusers().Authenticate(ctx,
@@ -405,7 +405,7 @@ func TestDemotingSomebodyTakesEffectOnTheirOpenSession(t *testing.T) {
 	if resolved.Role != RoleStaff {
 		t.Errorf("role on the open session = %q, want staff", resolved.Role)
 	}
-	if DefaultCan(resolved.Role, RightSettingsWrite) {
-		t.Error("the demoted operator still carries settings.write on their open session")
+	if DefaultCan(resolved.Role, RightTeamWrite) {
+		t.Error("the demoted operator still carries team.write on their open session")
 	}
 }

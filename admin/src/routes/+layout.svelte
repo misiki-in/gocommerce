@@ -56,12 +56,16 @@
         { href: "/products", label: "Products", icon: "ri-price-tag-3-line", right: "catalog.read" , accent: "sky" },
         { href: "/categories", label: "Categories", icon: "ri-node-tree", right: "catalog.read" , accent: "blue" },
         { href: "/orders", label: "Orders", icon: "ri-shopping-bag-3-line", right: "orders.read" , accent: "amber" },
-        { href: "/discounts", label: "Discounts", icon: "ri-price-tag-2-line", right: "catalog.read" , accent: "rose" },
-        { href: "/taxes", label: "Tax", icon: "ri-percent-line", right: "settings.write" , accent: "violet" },
+        { href: "/discounts", label: "Discounts", icon: "ri-price-tag-2-line", right: "discounts.read" , accent: "rose" },
+        { href: "/taxes", label: "Tax", icon: "ri-percent-line", right: "taxes.read" , accent: "violet" },
         { href: "/customers", label: "Customers", icon: "ri-user-3-line", right: "customers.read" , accent: "teal" },
-        { href: "/inventory", label: "Inventory", icon: "ri-archive-2-line", right: "catalog.read" , accent: "emerald" },
-        { href: "/locations", label: "Locations", icon: "ri-map-pin-line", right: "catalog.read" , accent: "cyan" },
-        { href: "/settings", label: "Settings", icon: "ri-settings-3-line", right: "settings.write" , accent: "orange" },
+        { href: "/inventory", label: "Inventory", icon: "ri-archive-2-line", right: "inventory.read" , accent: "emerald" },
+        { href: "/locations", label: "Locations", icon: "ri-map-pin-line", right: "locations.read" , accent: "cyan" },
+        // Settings has no right of its own: the section is a shell, and every
+        // screen inside it carries its own gate. Hiding the whole section from
+        // an operator who may reach one of them is a worse lie than showing a
+        // section with one item in it.
+        { href: "/settings", label: "Settings", icon: "ri-settings-3-line", accent: "orange" },
     ];
 
     const visibleNav = $derived(nav.filter((item) => !item.right || can(item.right)));
@@ -207,10 +211,8 @@
             <i class="ri-arrow-up-s-line" aria-hidden="true"></i>
         </button>
         <div id="logged-user-dropdown" class="dropdown sm nowrap logged-user-dropdown" popover="auto">
-            <!-- First, and unconditional. This dropdown is the only way a staff
-                 operator reaches their own account: the Settings nav item is
-                 gated on settings.write, which they do not have and should not
-                 need to change their own password. -->
+            <!-- First, and unconditional: changing your own password needs no
+                 right, and this is the shortest way to it. -->
             <a
                 class="dropdown-item"
                 href="{base}/settings/account"
@@ -219,7 +221,7 @@
                 <i class="ri-user-settings-line" aria-hidden="true"></i>
                 <span class="txt">Your account</span>
             </a>
-            {#if can("settings.write")}
+            {#if can("team.read")}
                 <a
                     class="dropdown-item"
                     href="{base}/settings/superusers"

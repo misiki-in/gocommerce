@@ -6,12 +6,13 @@ import (
 )
 
 func (a *App) mountTeamRoutes() {
-	// Managing the team is settings.write, the right that can grant rights.
-	// Inviting somebody is handing out access, so it sits with changing a role
-	// rather than with the screens the invitee will end up using.
-	a.HandleAdminFunc("GET /api/admin/invitations", a.handleListInvitations, RightSettingsWrite)
-	a.HandleAdminFunc("POST /api/admin/invitations", a.handleCreateInvitation, RightSettingsWrite)
-	a.HandleAdminFunc("DELETE /api/admin/invitations/{id}", a.handleRevokeInvitation, RightSettingsWrite)
+	// Seeing the team is team.read; changing it is team.write, which can hand
+	// somebody the owner role and so can hand somebody everything. Inviting is
+	// a write for that reason: it is access being granted, not a screen the
+	// invitee will later use.
+	a.HandleAdminFunc("GET /api/admin/invitations", a.handleListInvitations, RightTeamRead)
+	a.HandleAdminFunc("POST /api/admin/invitations", a.handleCreateInvitation, RightTeamWrite)
+	a.HandleAdminFunc("DELETE /api/admin/invitations/{id}", a.handleRevokeInvitation, RightTeamWrite)
 
 	// Unauthenticated, and necessarily so: the invitee has no account yet.
 	// Holding the token is the credential, and neither route reveals anything
@@ -21,7 +22,7 @@ func (a *App) mountTeamRoutes() {
 
 	// Self-service. No right is declared, which means any authenticated
 	// operator: these act on the caller and on nobody else, and gating them
-	// behind settings.write is what forces a staff member to ask an owner to
+	// behind team.write is what forces a staff member to ask an owner to
 	// choose a password for them.
 	a.HandleAdminFunc("GET /api/admin/me", a.handleGetMe)
 	a.HandleAdminFunc("PATCH /api/admin/me", a.handleUpdateMe)
@@ -30,7 +31,7 @@ func (a *App) mountTeamRoutes() {
 	// Ending somebody else's sessions is an act of team management, and the one
 	// thing an owner wants before removing an account or reducing a role.
 	a.HandleAdminFunc("POST /api/admin/superusers/{id}/revoke-sessions",
-		a.handleRevokeSessions, RightSettingsWrite)
+		a.handleRevokeSessions, RightTeamWrite)
 }
 
 func (a *App) handleListInvitations(w http.ResponseWriter, r *http.Request) {

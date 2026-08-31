@@ -84,8 +84,12 @@ func TestNarrowingARoleTakesEffectOnTheNextRequest(t *testing.T) {
 		t.Fatalf("a manager was refused a refund before anything was changed: %s", rec.Body)
 	}
 
-	narrowed := []Right{RightCatalogRead, RightCatalogWrite, RightOrdersRead, RightOrdersWrite,
-		RightInventoryWrite, RightCustomersRead}
+	narrowed := []Right{}
+	for _, r := range DefaultRightsOf(RoleManager) {
+		if r != RightOrdersRefund {
+			narrowed = append(narrowed, r)
+		}
+	}
 	set, err := app.Roles().Set(ctx, RoleManager, narrowed, nil)
 	if err != nil {
 		t.Fatalf("Set: %v", err)
@@ -220,14 +224,14 @@ func TestSetRefusesWhatWouldBreakTheStore(t *testing.T) {
 
 // The self-lockout guard: an operator may not save away the right that got them
 // to this screen. Owner is unaffected — it is not configurable at all — so the
-// case that matters is a manager who was handed settings.write.
+// case that matters is a manager who was handed roles.write.
 func TestYouCannotRemoveYourOwnWayBackIn(t *testing.T) {
 	app := newTestApp(t)
 	ctx := context.Background()
 
 	if _, err := app.Roles().Set(ctx, RoleManager,
-		append(DefaultRightsOf(RoleManager), RightSettingsWrite), nil); err != nil {
-		t.Fatalf("grant settings.write to manager: %v", err)
+		append(DefaultRightsOf(RoleManager), RightRolesWrite), nil); err != nil {
+		t.Fatalf("grant roles.write to manager: %v", err)
 	}
 	if _, err := app.Superusers().Create(ctx, "manager@example.com", "a-long-enough-password", RoleManager); err != nil {
 		t.Fatalf("create manager: %v", err)
@@ -354,5 +358,27 @@ func TestAnInvitationShowsTheStoresRights(t *testing.T) {
 	}
 	if !slices.Equal(inv.Rights, []Right{RightCatalogRead, RightOrdersRead}) {
 		t.Errorf("the invitation offers %v, which is not what this store gives staff", inv.Rights)
+	}
+}
+
+// Every right has to be reachable: one that no route asks for is a checkbox in
+// the panel that changes nothing, and it would sit there indefinitely because
+// nothing else can notice.
+//
+// The mirror of TestRouteRightsExist, which catches the same drift from the
+// other end — a route asking for a right no role can hold.
+func TestEveryRightGatesSomething(t *testing.T) {
+	app := newTestApp(t)
+
+	used := map[Right]bool{}
+	for _, route := range app.Routes() {
+		for _, right := range route.Rights {
+			used[right] = true
+		}
+	}
+	for _, right := range AllRights {
+		if !used[right] {
+			t.Errorf("%q is in AllRights but gates no route: nothing can be denied by it", right)
+		}
 	}
 }

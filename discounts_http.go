@@ -13,11 +13,11 @@ func (a *App) mountDiscountRoutes() {
 	a.HandleFunc("DELETE /api/carts/{token}/discount", a.handleClearCartDiscount)
 
 	// A promotion is catalog work: a manager runs one, staff may look at it.
-	a.HandleAdminFunc("GET /api/admin/discounts", a.handleListDiscounts, RightCatalogRead)
-	a.HandleAdminFunc("POST /api/admin/discounts", a.handleCreateDiscount, RightCatalogWrite)
-	a.HandleAdminFunc("GET /api/admin/discounts/{id}", a.handleGetDiscount, RightCatalogRead)
-	a.HandleAdminFunc("PATCH /api/admin/discounts/{id}", a.handleUpdateDiscount, RightCatalogWrite)
-	a.HandleAdminFunc("DELETE /api/admin/discounts/{id}", a.handleDeleteDiscount, RightCatalogWrite)
+	a.HandleAdminFunc("GET /api/admin/discounts", a.handleListDiscounts, RightDiscountsRead)
+	a.HandleAdminFunc("POST /api/admin/discounts", a.handleCreateDiscount, RightDiscountsWrite)
+	a.HandleAdminFunc("GET /api/admin/discounts/{id}", a.handleGetDiscount, RightDiscountsRead)
+	a.HandleAdminFunc("PATCH /api/admin/discounts/{id}", a.handleUpdateDiscount, RightDiscountsWrite)
+	a.HandleAdminFunc("DELETE /api/admin/discounts/{id}", a.handleDeleteDiscount, RightDiscountsWrite)
 }
 
 // -------------------------------------------------------------------- public

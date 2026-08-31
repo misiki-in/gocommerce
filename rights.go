@@ -21,57 +21,132 @@ import (
 // Right is one thing an operator may be allowed to do.
 type Right string
 
-// The rights, one per thing the panel gates. They are coarse on purpose: a
-// right per button is a permission system nobody can hold in their head, and
-// the store has no use for "may edit a barcode but not a weight".
+// The rights, grouped by the part of the store they govern.
+//
+// They are coarse — one per area a person could plausibly be kept out of, not
+// one per button — but no coarser than that, and the test of "coarse enough"
+// is whether a real store would ever want the line drawn there. It would: a
+// merchandiser who runs discounts has no business editing tax rates, and the
+// person who invites operators is not necessarily the person who decides what
+// a role means.
+//
+// The first cut of this list had eight rights and drew none of those lines.
+// Discounts were read with catalog.read and written with catalog.write; tax
+// rates were read with catalog.read but written with settings.write; and
+// settings.write alone covered the team, the roles matrix, the locations, the
+// tax rates and the export of the whole database. That is not a permission
+// system, it is four unrelated jobs sharing one key.
 const (
+	// ------------------------------------------------------------- catalog
+
 	// RightCatalogRead covers products, variants, categories, collections and
 	// media. Reading the catalog is the floor: an operator who cannot see it
 	// cannot do anything else either.
 	RightCatalogRead  Right = "catalog.read"
 	RightCatalogWrite Right = "catalog.write"
 
+	// ----------------------------------------------------------- inventory
+
+	// RightInventoryRead is what is on the shelf: stock levels and the
+	// low-stock report. Apart from the catalog because the people who count
+	// stock and the people who write listings are rarely the same people.
+	RightInventoryRead Right = "inventory.read"
+	// RightInventoryWrite is stock takes, adjustments and transfers — the
+	// numbers, not the listings.
+	RightInventoryWrite Right = "inventory.write"
+
+	// ------------------------------------------------------- merchandising
+
+	// RightDiscountsRead and RightDiscountsWrite are their own pair rather
+	// than part of the catalog. A discount is money off, and the account that
+	// writes product copy is not automatically the account that may invent a
+	// hundred-percent-off code — which is the exact mistake the roles system
+	// was introduced to make expressible.
+	RightDiscountsRead  Right = "discounts.read"
+	RightDiscountsWrite Right = "discounts.write"
+
+	// ------------------------------------------------------- configuration
+
+	// RightTaxesRead and RightTaxesWrite are the tax rates. Writing one
+	// changes what every future order collects, which is why it is not filed
+	// under the catalog with the prices.
+	RightTaxesRead  Right = "taxes.read"
+	RightTaxesWrite Right = "taxes.write"
+
+	// RightLocationsRead and RightLocationsWrite are the places stock lives.
+	// Writing includes choosing the default, which silently changes where new
+	// stock lands.
+	RightLocationsRead  Right = "locations.read"
+	RightLocationsWrite Right = "locations.write"
+
+	// -------------------------------------------------------------- orders
+
 	// RightOrdersRead and RightOrdersWrite split at the point where an order
-	// changes: fulfilling, editing and placing are writes.
+	// changes: editing, placing, cancelling and settling payment are writes.
 	RightOrdersRead  Right = "orders.read"
 	RightOrdersWrite Right = "orders.write"
+	// RightOrdersFulfill is moving the goods — creating and amending
+	// fulfillments. A warehouse account needs this and nothing else on an
+	// order.
+	RightOrdersFulfill Right = "orders.fulfill"
 	// RightOrdersRefund is separate from the rest of an order's lifecycle
 	// because it is the one that sends money back out of the store.
 	RightOrdersRefund Right = "orders.refund"
-
-	// RightInventoryWrite is stock takes and adjustments. Reading stock comes
-	// with the catalog, since it is on the variant.
-	RightInventoryWrite Right = "inventory.write"
 
 	// RightCustomersRead is the orders grouped by who placed them, which is
 	// personal data and so is named separately from the orders themselves.
 	RightCustomersRead Right = "customers.read"
 
-	// RightSettingsWrite is the store's own configuration, the team, and the
-	// import and export of everything. It is the right that can grant rights.
-	RightSettingsWrite Right = "settings.write"
+	// -------------------------------------------------------------- access
+
+	// RightTeamRead is who is on the team, and who has been invited and has
+	// not arrived yet.
+	RightTeamRead Right = "team.read"
+	// RightTeamWrite is inviting, creating, editing and removing operators,
+	// changing their role and ending their sessions. It can hand somebody the
+	// owner role, so it can hand somebody everything.
+	RightTeamWrite Right = "team.write"
+	// RightRolesWrite is the matrix itself — not who holds a role, but what
+	// holding it means. Apart from team.write because they are different
+	// powers: one staffs the shop, the other rewrites the rules it is staffed
+	// under.
+	RightRolesWrite Right = "roles.write"
+
+	// ---------------------------------------------------------------- data
+
+	// RightDataExport is the whole catalog, or every order, as a file, out of
+	// the building. A read right with the reach of a database dump.
+	RightDataExport Right = "data.export"
+	// RightDataImport is the same door inwards: one bad file changes every
+	// price faster than any screen could.
+	RightDataImport Right = "data.import"
 )
 
-// AllRights is every right, in a stable order. Used by the roles below, by the
-// panel when it asks what it may do, and by the tests that keep the two honest.
+// AllRights is every right, in the order the panel renders them. Used by the
+// roles below, by the panel when it asks what it may do, and by the tests that
+// keep the two honest.
 var AllRights = []Right{
 	RightCatalogRead, RightCatalogWrite,
-	RightOrdersRead, RightOrdersWrite, RightOrdersRefund,
-	RightInventoryWrite,
+	RightInventoryRead, RightInventoryWrite,
+	RightDiscountsRead, RightDiscountsWrite,
+	RightTaxesRead, RightTaxesWrite,
+	RightLocationsRead, RightLocationsWrite,
+	RightOrdersRead, RightOrdersWrite, RightOrdersFulfill, RightOrdersRefund,
 	RightCustomersRead,
-	RightSettingsWrite,
+	RightTeamRead, RightTeamWrite, RightRolesWrite,
+	RightDataExport, RightDataImport,
 }
 
 // The roles. Fixed, and few: a store with three people does not need a
 // permission editor, and a store that does needs one designed rather than
-// grown.
+// grown. What each of them *carries* is the store's to change — see roles.go.
 const (
 	// RoleOwner can do everything, including deciding who else can. Every
 	// existing operator is one, because until now everyone was.
 	RoleOwner = "owner"
 	// RoleManager runs the shop: the catalog, the orders, the money going back
-	// out. They cannot change the store's settings or the team, which is what
-	// separates running the shop from owning it.
+	// out. They cannot change the store's configuration or the team, which is
+	// what separates running the shop from owning it.
 	RoleManager = "manager"
 	// RoleStaff works the orders: they can see what is being sold and move an
 	// order along, and they cannot send money out, change prices, or alter who
@@ -89,17 +164,30 @@ var Roles = []string{RoleOwner, RoleManager, RoleStaff}
 // `role_rights` (roles.go), and the effective set is what every request is
 // judged against. This map stays the seed: a role with no stored override
 // tracks it, so widening a default reaches every store that never touched it.
+//
+// The sets below are what the eight-right version granted, spelled out against
+// the finer list — growing the list changed nobody's access. Staff can still
+// see tax rates, locations and discount codes because staff could always see
+// them; the difference is that a store can now say otherwise, and the defaults
+// do not assume it wants to.
 var roleRights = map[string][]Right{
 	RoleOwner: AllRights,
 	RoleManager: {
 		RightCatalogRead, RightCatalogWrite,
-		RightOrdersRead, RightOrdersWrite, RightOrdersRefund,
-		RightInventoryWrite,
+		RightInventoryRead, RightInventoryWrite,
+		RightDiscountsRead, RightDiscountsWrite,
+		RightTaxesRead,
+		RightLocationsRead,
+		RightOrdersRead, RightOrdersWrite, RightOrdersFulfill, RightOrdersRefund,
 		RightCustomersRead,
 	},
 	RoleStaff: {
 		RightCatalogRead,
-		RightOrdersRead, RightOrdersWrite,
+		RightInventoryRead,
+		RightDiscountsRead,
+		RightTaxesRead,
+		RightLocationsRead,
+		RightOrdersRead, RightOrdersWrite, RightOrdersFulfill,
 		RightCustomersRead,
 	},
 }

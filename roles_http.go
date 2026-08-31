@@ -3,15 +3,19 @@ package gocommerce
 import "net/http"
 
 // Role routes. Reading the matrix and writing it sit behind the same right,
-// settings.write, because they are the same act at different speeds: an
-// operator who can see exactly which rights each role is missing is being
-// handed the map of the store's access, and the only people with a use for it
-// are the people who may redraw it. An operator's own rights reach them on
-// their record, so nobody needs this to find out what they may do.
+// roles.write, because they are the same act at different speeds: an operator
+// who can see exactly which rights each role is missing is holding the map of
+// the store's access, and the only people with a use for it are the people who
+// may redraw it. An operator's own rights reach them on their record, so nobody
+// needs this endpoint to find out what they themselves may do.
+//
+// Apart from team.write on purpose: staffing the shop and rewriting the rules
+// it is staffed under are different powers, and a store may want to hand out
+// the first without the second.
 func (a *App) mountRoleRoutes() {
-	a.HandleAdminFunc("GET /api/admin/roles", a.handleListRoles, RightSettingsWrite)
-	a.HandleAdminFunc("PUT /api/admin/roles/{role}", a.handleSetRoleRights, RightSettingsWrite)
-	a.HandleAdminFunc("DELETE /api/admin/roles/{role}", a.handleResetRoleRights, RightSettingsWrite)
+	a.HandleAdminFunc("GET /api/admin/roles", a.handleListRoles, RightRolesWrite)
+	a.HandleAdminFunc("PUT /api/admin/roles/{role}", a.handleSetRoleRights, RightRolesWrite)
+	a.HandleAdminFunc("DELETE /api/admin/roles/{role}", a.handleResetRoleRights, RightRolesWrite)
 }
 
 // handleListRoles returns the whole matrix: every role, the closed list of

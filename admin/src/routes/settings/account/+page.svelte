@@ -3,7 +3,7 @@
      * Your own account.
      *
      * This screen exists so that changing your own password is not gated behind
-     * settings.write — which is also the right to change everybody's role. Put
+     * team.write — which is also the right to change everybody's role. Put
      * it there and a staff member who suspects their password is known has to
      * ask an owner to choose a new one for them, which is the exact practice
      * invitations exist to end.
