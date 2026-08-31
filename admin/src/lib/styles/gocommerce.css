@@ -162,6 +162,19 @@ body {
 }
 .page {
     background: var(--pageColor);
+    /*
+     * The shell is a flex row — sidebar, then page — and PocketBase's `.page`
+     * carries no `flex`, because upstream it is not a flex item. Left at
+     * `0 1 auto` it sizes to its widest unshrinkable child, which is the
+     * header: Products rendered a 563px column on a 1440px window with the
+     * listing cut off mid-status and 650px of empty ground beside it.
+     *
+     * `min-width: 0` with it, or the table inside goes the other way and
+     * pushes the page wider than the window instead of scrolling in its own
+     * wrapper.
+     */
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /*
@@ -3417,14 +3430,22 @@ tr.variant-child > td:first-child {
 }
 
 .roles-table {
-    /* The right and its sentence take what they need; the role columns are
-       equal and no wider than the controls in them. */
     width: 100%;
     table-layout: auto;
+    /*
+     * `.table` carries `min-width: 900px`, which is right for the listing
+     * tables it was written for and wrong here. The panel's content column is
+     * the window less two 240px rails — 632px at a 1100px window — so the
+     * floor put Manager and Staff off the right-hand edge of an ordinary
+     * laptop, with nothing on screen to say they were there.
+     */
+    min-width: 0;
 }
 
 .roles-table .col-right {
-    min-width: 260px;
+    /* Wide enough for the name and a line of description, and no wider: every
+       pixel here is one the role columns do not get. */
+    min-width: 200px;
 }
 
 .roles-table td.col-right {
@@ -3451,7 +3472,9 @@ tr.variant-child > td:first-child {
 }
 
 .roles-table .col-role {
-    width: 150px;
+    /* Set by the widest thing in the head — "using defaults" and the two
+       buttons under it — not by the checkbox, which needs 20. */
+    width: 130px;
     text-align: center;
     vertical-align: middle;
 }
@@ -3640,5 +3663,21 @@ tr.variant-child > td:first-child {
 
     .roles-table .role-actions {
         flex-direction: column;
+    }
+}
+
+/*
+ * Between a phone and a wide window there is a band where the matrix fits but
+ * the sentences do not: two 240px rails leave about 630px of content at 1100,
+ * and a column of descriptions eats two thirds of it. The sentences go first,
+ * because a checkbox nobody can see is worse than a name nobody can gloss.
+ */
+@media (max-width: 1200px) {
+    .roles-table .col-right {
+        min-width: 0;
+    }
+
+    .roles-table .right-help {
+        display: none;
     }
 }
