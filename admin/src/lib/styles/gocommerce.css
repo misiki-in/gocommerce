@@ -3399,3 +3399,246 @@ tr.variant-child > td:first-child {
 .page-content > .list {
     flex: 0 0 auto;
 }
+
+/* ------------------------------------------------------ settings: roles */
+
+/*
+ * The role matrix. Rights down the side, roles across, one checkbox at each
+ * intersection — the shape of the question the screen answers.
+ *
+ * It is a `.table` inside `.page-table-wrapper` rather than a grid of cards
+ * because the wrapper already solves the two hard parts: a sticky head, and
+ * horizontal scrolling on a narrow screen instead of a page that scrolls
+ * sideways as a whole.
+ */
+.roles-intro {
+    padding: 0 var(--smSpacing);
+    max-width: 900px;
+}
+
+.roles-table {
+    /* The right and its sentence take what they need; the role columns are
+       equal and no wider than the controls in them. */
+    width: 100%;
+    table-layout: auto;
+}
+
+.roles-table .col-right {
+    min-width: 260px;
+}
+
+.roles-table td.col-right {
+    /* The name leads and the sentence sits under it, so a column of names
+       stays scannable — which is what a refusal quotes back at an operator. */
+    display: table-cell;
+    line-height: var(--smLineHeight);
+}
+
+/* inline-block, not block: `code` carries a background, and full width paints
+   a grey bar across the column that reads as an input rather than a name. */
+.roles-table .right-name {
+    display: inline-block;
+    font-family: var(--monospaceFontFamily);
+    font-size: var(--smFontSize);
+    color: var(--surfaceTxtColor);
+}
+
+.roles-table .right-help {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--smFontSize);
+    color: var(--surfaceTxtHintColor);
+}
+
+.roles-table .col-role {
+    width: 150px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* The signed-in operator's own column, tinted the way a selected row is: the
+   rules that lock cells apply to this one and to no other. */
+.roles-table .col-role.mine {
+    background: var(--surfaceAlt1Color);
+}
+
+.roles-table thead .col-role {
+    vertical-align: bottom;
+}
+
+.roles-table .role-name {
+    display: block;
+    font-size: var(--fontSize);
+    font-weight: 600;
+    color: var(--surfaceTxtColor);
+}
+
+.roles-table .role-state,
+.roles-table .role-count {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--surfaceTxtHintColor);
+}
+
+/* A group heading spans the whole table and separates without a card. */
+.roles-table .group-row > th {
+    padding-top: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--surfaceTxtDisabledColor);
+    background: none;
+}
+
+/*
+ * The checkbox is the cell. PocketBase draws the box on the label and hides
+ * the input, so centring means centring the label — and the label's text is
+ * for a screen reader, which is why it is taken out of the flow rather than
+ * left out of the markup.
+ */
+.roles-table .col-role .field {
+    display: flex;
+    justify-content: center;
+    padding: 0;
+}
+
+.roles-table .col-role .field label {
+    padding: 0;
+    width: var(--checkboxSize, 20px);
+    height: var(--checkboxSize, 20px);
+}
+
+.roles-table .cell-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/*
+ * Save and Reset live in the sticky head, under the role they act on. They
+ * were in a `tfoot` first, which put them below the table's own scroll — the
+ * one control the screen exists for, out of sight until you scrolled to it.
+ */
+.roles-table .role-actions {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.roles-table .role-actions .btn {
+    font-weight: normal;
+}
+
+.roles-table .role-dirty {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--warningColor);
+}
+
+/*
+ * The settings rail on a phone.
+ *
+ * `.page-sidebar` holds a 240px minimum at every width, and the app sidebar
+ * beside it collapses into a drawer at 768px — so on a phone the settings rail
+ * was the only thing left taking a quarter of the screen, and the content it
+ * introduces was squeezed into a column about 150px wide. Every settings
+ * screen wrapped a word or two per line; it read as a broken page rather than
+ * a narrow one.
+ *
+ * It goes above the content instead of beside it, as a strip of links that
+ * scrolls sideways — the same move the order grid makes at 780px. The group
+ * headings go: "System" and "Data" earn their place in a column and only cost
+ * height in a strip.
+ */
+@media (max-width: 768px) {
+    .page:has(> .settings-sidebar) {
+        flex-direction: column;
+    }
+
+    .settings-sidebar {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        overflow: visible;
+        border-right: 0;
+        border-bottom: 1px solid var(--surfaceAlt2Color);
+    }
+
+    .settings-sidebar .sidebar-content {
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+        padding: 8px 10px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    /*
+     * The links live inside `::details-content`, the anonymous box a <details>
+     * wraps everything after its summary in — so laying out `.nav-group`
+     * itself does nothing to them, and neither does `display: contents`, which
+     * a <details> ignores. This is the box that has to become the row.
+     */
+    .settings-sidebar .nav-group,
+    .settings-sidebar .nav-group::details-content {
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+    }
+
+    .settings-sidebar .nav-group > summary {
+        display: none;
+    }
+
+    /*
+     * A basis of `max-content`, not `auto`. The rail's items are `width: 100%`
+     * from a rule nested deeper than anything reasonable here can outrank, and
+     * a basis of `auto` reads that width — so the first link took the whole
+     * strip and the other three sat off the end of it. A definite basis is
+     * used *instead* of `width`, which settles it without a specificity war.
+     */
+    .settings-sidebar .nav-item {
+        flex: 0 0 max-content;
+        white-space: nowrap;
+    }
+}
+
+/*
+ * The role matrix on a phone. The first column holds a name and a sentence
+ * about it, which at 260px pushes every checkbox off the right-hand edge —
+ * so the screen opens on a table whose whole point is out of sight.
+ *
+ * The sentence goes and the column shrinks to the name. The wrapper still
+ * scrolls if it has to, but it no longer has to for the common case.
+ */
+@media (max-width: 768px) {
+    /* `width: 1%` under `table-layout: auto` is "as narrow as the content
+       allows" — without it the first column keeps every pixel the role
+       columns are not using, and pushes them off the screen anyway. */
+    .roles-table .col-right {
+        min-width: 0;
+        width: 1%;
+        white-space: nowrap;
+    }
+
+    .roles-table .right-help {
+        display: none;
+    }
+
+    .roles-table .col-role {
+        width: 80px;
+    }
+
+    .roles-table .role-actions {
+        flex-direction: column;
+    }
+}
