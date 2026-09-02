@@ -46,15 +46,16 @@ without PostgreSQL can still run the pure-logic suite; CI always sets it, so
 the database path is never untested where it counts.
 
 ```powershell
-go test ./... -count=1                # the whole suite
-go test . -run TestCheckout -count=1  # one pattern
-go test -tags no_admin . -count=1     # the API-only build
+go test ./... -count=1                     # the whole suite
+go test ./core -run TestCheckout -count=1  # one pattern
+go build -tags no_admin ./...              # the API-only build
+go test -tags no_admin ./core -count=1     # ...and its tests
 ```
 
 `-count=1` because a cached pass on a schema that no longer exists is not a
 pass. The `no_admin` tag swaps `admin/embed.go` for `admin/embed_no_admin.go`:
-no `go:embed`, no panel routes, panel tests skipping themselves. Run it — it is
-the build that breaks when core accidentally starts depending on the panel
+no `go:embed`, no panel routes, panel tests skipping themselves. Run both — it
+is the build that breaks when core accidentally starts depending on the panel
 being mounted.
 
 CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs the full
@@ -183,7 +184,8 @@ more than once.
 gofmt -l .                      # must print nothing
 go vet ./...
 go test ./... -count=1          # needs GOCOMMERCE_TEST_DB
-go test -tags no_admin . -count=1
+go build -tags no_admin ./...
+go test -tags no_admin ./core -count=1
 .\scripts\build.ps1             # required after any admin/src change
 .\scripts\smoke.ps1             # against a running store
 .\gocommerce.exe doctor         # nine operational checks

@@ -47,7 +47,16 @@ if ($skills) {
     $goSrc = (Get-ChildItem $Repo -Recurse -Filter *.go |
         Where-Object { $_.FullName -notmatch 'admin\\build' } |
         ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n"
-    $spec = [IO.File]::ReadAllText("$Repo\openapi.json")
+    # A missing spec is a finding, not a crash - the run must survive to report
+    # everything else it knows.
+    $specPath = Join-Path $Repo 'core\openapi.json'
+    if (-not (Test-Path $specPath)) {
+        "  MISSING SPEC     core\openapi.json (openapi.go embeds it beside itself)"
+        $problems++
+        $spec = ''
+    } else {
+        $spec = [IO.File]::ReadAllText($specPath)
+    }
 
     # Good docs use concrete examples ("/api/admin/orders/42", "/api/checkout/cod")
     # where the spec uses placeholders. Collapse both to one shape before
@@ -116,7 +125,20 @@ if ($skills) {
     "checked {0} links, {1} routes, {2} methods, {3} accessors across {4} skills" -f `
         $links, $routes.Count, $methods.Count, $accessors.Count, $skills.Count
 } else {
-    "checked {0} links (no skills/ directory)" -f $links
+    # A silent skip here once meant the skills-vs-code checks could vanish
+    # without anyone noticing. Their absence is itself a failure.
+    "  MISSING          skills/ - the skills-vs-code checks did not run"
+    $problems++
+}
+
+# D25: the engine lives in core/. A .go file at the repo root is drift, and
+# this check is what makes the layout enforced rather than remembered.
+$strayGo = Get-ChildItem $Repo -Filter *.go -File -ErrorAction SilentlyContinue
+if ($strayGo) {
+    foreach ($g in $strayGo) {
+        "  STRAY GO FILE    {0} - engine lives in core/ (D25)" -f $g.Name
+    }
+    $problems += $strayGo.Count
 }
 
 if ($problems -gt 0) {

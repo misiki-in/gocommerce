@@ -44,7 +44,8 @@ There is no cgo toolchain, so `-race` is unavailable locally; CI covers it.
 gofmt -l .                                  # must print nothing
 go vet ./...
 go test ./... -count=1
-go test -tags no_admin . -count=1           # the API-only build
+go build -tags no_admin ./...               # the API-only build links
+go test -tags no_admin ./core -count=1
 .\scripts\check-docs.ps1                    # skills and links still match the code
 .\scripts\build.ps1                         # required after any admin/src change
 .\scripts\smoke.ps1                         # walks a whole sale; exits non-zero on any failure
@@ -70,8 +71,8 @@ found this way was intermittent.
 
 ## Working style
 
-- Read `PLAN.md` §1 before proposing anything structural. The decisions have
-  numbers (D1–D23) and reasons; disagree with the reason, not the conclusion.
+- Read `PLAN.md` §5 before proposing anything structural. The decisions have
+  numbers (D1–D25) and reasons; disagree with the reason, not the conclusion.
 - Comments explain **why**. The code already says what.
 - Match the surrounding prose voice in docs — plain, specific, no filler.
 - When something is genuinely ambiguous, say so and state the assumption you

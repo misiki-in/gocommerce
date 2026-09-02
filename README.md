@@ -36,6 +36,10 @@ if err != nil {
 log.Fatal(app.ListenAndServe())
 ```
 
+The engine imports as `github.com/misiki/gocommerce/core`; the package is
+still named `gocommerce`, so the code reads as above. The old root import path
+no longer resolves as a package — ignore any stale pkg.go.dev page for it.
+
 No plugin registry, no dependency-injection container, no reflection, no
 configuration DSL. Everything a store runs is on that screen, and "go to
 definition" works on all of it.

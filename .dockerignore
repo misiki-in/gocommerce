@@ -10,7 +10,7 @@ admin/.svelte-kit
 # embeds it, and the panel stage overwrites it with a fresh one.
 *.exe
 *.exe~
-gocommerce
+/gocommerce
 tmp/
 
 # Nothing the running store reads.

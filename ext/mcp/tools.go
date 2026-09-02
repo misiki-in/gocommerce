@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/misiki/gocommerce"
+	"github.com/misiki/gocommerce/core"
 )
 
 // builtinTools are the store operations an agent can perform.

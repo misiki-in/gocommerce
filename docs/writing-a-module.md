@@ -19,7 +19,7 @@ package hello
 
 import (
     "net/http"
-    "github.com/misiki/gocommerce"
+    "github.com/misiki/gocommerce/core"
 )
 
 type Module struct{}
@@ -36,6 +36,9 @@ func (m *Module) Register(app *gocommerce.App) error {
     return nil
 }
 ```
+
+The import path is `github.com/misiki/gocommerce/core`, but the package is
+still named `gocommerce` — code refers to it as `gocommerce.New`, as above.
 
 Install it by adding one argument:
 

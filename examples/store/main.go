@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/misiki/gocommerce"
+	"github.com/misiki/gocommerce/core"
 
 	"github.com/misiki/gocommerce/ext/cms"
 	"github.com/misiki/gocommerce/ext/invoices"

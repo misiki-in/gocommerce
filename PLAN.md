@@ -421,8 +421,9 @@ engine.
 | D20 | Search | Out of core | Search infrastructure varies heavily by deployment. |
 | D21 | Language | `Config.DefaultLanguage` **default `en`**, `Config.Languages` default `["en"]`. Core negotiates per request (`?lang=` → `Accept-Language` → default) with hand-rolled primary-subtag matching, snapshots the language on the order, and passes it to notifiers. Content translations are OUT of core: an optional `Translator` port supplies per-language field overrides, batched by id. | A single-language store must sell without paying for i18n, but extensibility was a requirement — so the seam is built, not speculated. `golang.org/x/text` is a dependency we decline for ~25 lines of matching. |
 | D22 | Guest checkout | **Permanent core guarantee.** A shopper buys with a cart token and an email; no account, ever. A future identity module may ADD authenticated checkout and order history, but may never make an account required, and core carries no path that assumes a customer record exists. | Stating it as an invariant now constrains the identity module before it exists — the only time that constraint is free. It also keeps order snapshots (§10.4) authoritative rather than deferring to mutable customer rows. |
-| D23 | Repo layout | **One Go module.** Core at the root; extensions that add zero third-party dependencies are packages under `ext/`; an extension needing an SDK (`queue-redis`, `search-meilisearch`, `storage-s3`) ships as its own satellite repo. MCP was expected to be one and is not — it speaks JSON-RPC over `encoding/json` instead of taking the official SDK, so it stayed in `ext/` (§22). No `go.work`, no nested modules, no per-extension tags. | Dependency isolation was the only thing multi-module bought, and most planned extensions are REST + HMAC with no SDK. Bundled extensions still see only core's exported API — Go package boundaries forbid reaching into unexported internals — so they remain a real proof of the seams while `go build ./...` covers the whole product. |
+| D23 | Repo layout | **One Go module.** Core at the root; extensions that add zero third-party dependencies are packages under `ext/`; an extension needing an SDK (`queue-redis`, `search-meilisearch`, `storage-s3`) ships as its own satellite repo. MCP was expected to be one and is not — it speaks JSON-RPC over `encoding/json` instead of taking the official SDK, so it stayed in `ext/` (§22). No `go.work`, no nested modules, no per-extension tags. (Layout clause superseded by D25 — the engine now lives in `core/`.) | Dependency isolation was the only thing multi-module bought, and most planned extensions are REST + HMAC with no SDK. Bundled extensions still see only core's exported API — Go package boundaries forbid reaching into unexported internals — so they remain a real proof of the seams while `go build ./...` covers the whole product. |
 | D24 | Role rights | **Fixed roles, configurable sets, twenty rights.** The roles stay `owner`, `manager`, `staff`; what `manager` and `staff` may do is the store's to re-cut, stored in `role_rights` as the departure from the engine's defaults (a role with no rows keeps tracking them). Owner is not storable and always carries every right. Every role keeps `catalog.read`. Rights resolve on each authentication, never from a cached copy. The catalogue is one right per area a person could be kept out of — catalog, inventory, discounts, taxes, locations, orders (read/write/fulfill/refund), customers, team (read/write), roles, data (export/import) — replacing an eight-right first cut in which `settings.write` alone covered the team, the roles matrix, the locations, the tax rates and the export of the whole database. This renames `RightsOf`/`Can` to `DefaultRightsOf`/`DefaultCan` and adds `(*Superuser).Has` — a breaking change to the exported API, taken deliberately. | D19 left the seam open for RBAC and rights.go was already a map so that the sets could move into a table without moving the decisions. Custom *roles* were declined: a role name is in the `superusers` CHECK, in every picker and in every invitation, and a store that wants "warehouse" almost always wants "staff, plus stock" — which re-cutting gives it. Resolving per request rather than caching means a withdrawn right is gone on the next call, with nobody signed out and no second server holding a stale copy of who may refund. |
+| D25 | Engine location | **The engine moves from the repo root to `core/`: import path `github.com/misiki/gocommerce/core`, package clause still `gocommerce`.** A clean break, no facade and no aliases: the old import path stops existing and all 17 in-repo import sites were rewritten in the same commit; an external importer (none known) fixes it with the same one-line edit, since the package identifier and every exported symbol are unchanged. go.mod stays at the root with the module path unchanged, so one module (D23) and one engine package (D6) stand; only D23's "core at the root" clause is superseded. `openapi.json` and `taxonomy/` moved beside the `go:embed` directives that read them. `check-docs.ps1` and CI now fail if a `.go` file reappears at the repo root, so the layout is enforced rather than remembered. Docs keep citing engine files by bare name (`checkout.go`) — there is exactly one package they can mean. | The root had grown to ~94 entries and the engine had no directory of its own. A facade at the old path would be a permanent second name for every exported symbol and a standing drift surface — machinery protecting importers that do not exist, when D24 already establishes that a recorded pre-1.0 break is acceptable. `core/` rather than `gocommerce/` because `.gitignore`'s `/gocommerce` and `.dockerignore`'s `gocommerce` both match the binary and would have swallowed the directory, and `gocommerce/gocommerce` stutters; keeping the package clause avoids touching 74 package clauses and every `gocommerce.X` reference in cmd, ext, gctest, examples and the tutorial. Splits stay out of this change: a leaf is cut only when it borrows nothing unexported and no interface is invented to break a cycle (S3) — `carriers.go` (stdlib-only) qualifies today as a follow-up; `taxonomy` and `options` (6 and 3 borrowed internals) do not yet, and a future taxonomy package would subsume `core/taxonomy/`'s data files, editing the embed directives then. |
 
 ---
 
@@ -1345,20 +1346,22 @@ As built:
 gocommerce/                      # ONE Go module: github.com/misiki/gocommerce
 ├── go.mod                       # pgx is the only production dependency
 ├── PLAN.md  README.md  AGENTS.md  CLAUDE.md
-├── gocommerce.go                # App, Config, New, ListenAndServe
-├── module.go  ports.go
-├── events.go  outbox.go
-├── db.go  migrate.go  schema.go
-├── httpx.go  openapi.go  openapi.json
-├── i18n.go                      # language negotiation + Translator application (D21)
-├── catalog.go  catalog_http.go  # products, options AND variants: one service
-├── inventory.go
-├── cart.go  checkout.go  orders.go  commerce_http.go
-├── payments.go  fulfillment.go  notify.go
-├── superusers.go  superusers_http.go   # operator identity (email + password)
-├── doctor.go                    # operational diagnostics → `gocommerce doctor`
-├── transfer.go  transfer_http.go       # CSV import/export
-├── types.go                     # Money, Address, Metadata
+├── core/                        # the engine (D25): import ".../core", package gocommerce
+│   ├── gocommerce.go            # App, Config, New, ListenAndServe
+│   ├── module.go  ports.go
+│   ├── events.go  outbox.go
+│   ├── db.go  migrate.go  schema.go
+│   ├── httpx.go  openapi.go  openapi.json
+│   ├── i18n.go                  # language negotiation + Translator application (D21)
+│   ├── catalog.go  catalog_http.go  # products, options AND variants: one service
+│   ├── inventory.go
+│   ├── cart.go  checkout.go  orders.go  commerce_http.go
+│   ├── payments.go  fulfillment.go  notify.go
+│   ├── superusers.go  superusers_http.go  # operator identity (email + password)
+│   ├── doctor.go                # operational diagnostics → `gocommerce doctor`
+│   ├── transfer.go  transfer_http.go     # CSV import/export
+│   ├── types.go                 # Money, Address, Metadata
+│   └── taxonomy/                # embedded category data, beside its go:embed
 ├── admin/                       # SvelteKit panel, embedded (admin_http.go)
 ├── skills/                      # procedural guides for humans and agents
 ├── .cursor/rules/               # editor-level guardrails

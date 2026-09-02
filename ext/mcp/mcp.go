@@ -30,7 +30,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/misiki/gocommerce"
+	"github.com/misiki/gocommerce/core"
 )
 
 // protocolVersion is the MCP revision this module implements.
