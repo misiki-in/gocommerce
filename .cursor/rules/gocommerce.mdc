@@ -6,8 +6,8 @@ alwaysApply: true
 # GoCommerce
 
 A commerce **engine**, not an application: a store is its own Go program that
-composes the engine with modules in `main()`. `PLAN.md` §1 holds the decision
-table (D1–D23) and is the authority; `AGENTS.md` is its operational summary.
+composes the engine with modules in `main()`. `PLAN.md` §5 holds the decision
+table (D1–D25) and is the authority; `AGENTS.md` is its operational summary.
 Procedural guides are in `skills/`.
 
 ## Non-negotiable
@@ -34,8 +34,8 @@ Procedural guides are in `skills/`.
 9. **Module routes are namespace-enforced** to `/x/<name>/` and
    `/api/admin/x/<name>/`. Choosing `HandleAdmin` *is* the authentication.
 10. **Every response is JSON**, using the envelope and error taxonomy in
-    `httpx.go` — including router 404s and 405s.
-11. **Every served route appears in `openapi.json`.** A test enforces it.
+    `core/httpx.go` — including router 404s and 405s.
+11. **Every served route appears in `core/openapi.json`.** A test enforces it.
 12. **`admin/src/lib/styles/*.css` are PocketBase's files, verbatim.** Do not
     hand-edit them. Only `gocommerce.css` and `fonts-inter.css` are ours. Use
     PocketBase's class vocabulary: `.label` not `.badge`, plain `.btn` is the
@@ -52,6 +52,6 @@ surrounding lines. The code already says what it does. Do not narrate.
 ## Before finishing
 
 `gofmt -l .` (silent), `go vet ./...`, `go test ./... -count=1`,
-`go test -tags no_admin . -count=1`. Any change under `admin/src` also needs
-`.\scripts\build.ps1`, because `admin/build` is committed so `go build` works
+`go build -tags no_admin ./...`, `go test -tags no_admin ./core -count=1`.
+Any change under `admin/src` also needs `.\scripts\build.ps1`, because `admin/build` is committed so `go build` works
 without Node.

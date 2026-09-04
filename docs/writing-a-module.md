@@ -19,7 +19,7 @@ package hello
 
 import (
     "net/http"
-    "github.com/misiki/gocommerce"
+    "github.com/misiki/gocommerce/core"
 )
 
 type Module struct{}
@@ -36,6 +36,9 @@ func (m *Module) Register(app *gocommerce.App) error {
     return nil
 }
 ```
+
+The import path is `github.com/misiki/gocommerce/core`, but the package is
+still named `gocommerce` — code refers to it as `gocommerce.New`, as above.
 
 Install it by adding one argument:
 
@@ -176,6 +179,13 @@ Returning an error asks the outbox to retry, which is right for a vendor being
 briefly unreachable. For a permanent rejection — a malformed address — log it
 and return nil, or you will spend twelve delivery attempts learning the same
 thing.
+
+Events are not only core's. A module with something to tell a shopper sends a
+`Notification` of its own — `ext/identity` sends `identity.password_reset`
+with `reset_token`, `reset_url` and `expires_in_minutes` in `Data` — and your
+notifier either has a template for that event name or ignores it. An event
+with no template is not an error: a store may install modules yours has never
+heard of.
 
 ## Contributing to the API contract
 

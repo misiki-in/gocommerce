@@ -8,9 +8,9 @@ description: Use when adding a right, gating a route, changing what a role may d
 ## The model
 
 One enumerated list of rights, three fixed roles drawn from it, and one place
-that decides — [`rights.go`](../rights.go). **Nothing outside that file may
+that decides — [`rights.go`](../core/rights.go). **Nothing outside that file may
 invent a right.** What each role *carries* is the store's to change
-([`roles.go`](../roles.go)); the list itself is not.
+([`roles.go`](../core/roles.go)); the list itself is not.
 
 ```
 catalog.read      products, variants, categories, collections, media

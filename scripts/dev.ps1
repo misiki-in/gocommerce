@@ -23,7 +23,8 @@ param(
     [int]$PgPort = 5433,
     [string]$PgUser = 'gocommerce',
     [switch]$Seed,
-    [switch]$Reset
+    [switch]$Reset,
+    [switch]$Identity
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +59,11 @@ try {
 } finally { Pop-Location }
 
 $env:DATABASE_URL = "postgres://$PgUser@${PgHost}:$PgPort/$Database?sslmode=disable"
+
+# -Identity installs the shopper-accounts module. The reference binary is
+# module-free by default; a storefront that offers sign-in needs this.
+$serveArgs = @('-addr', "127.0.0.1:$Port", '-admin-token', $Token)
+if ($Identity) { $serveArgs += '-identity' }
 $base = "http://127.0.0.1:$Port"
 
 # Create the panel operator. Bootstrap only acts when there is none, so this is
@@ -88,7 +94,7 @@ function Show-Banner {
 if ($Seed) {
     # Seeding needs the server up, so start it, seed, and leave it running.
     $server = Start-Process -FilePath "$repo\gocommerce.exe" `
-        -ArgumentList '-addr', "127.0.0.1:$Port", '-admin-token', $Token, 'serve' `
+        -ArgumentList ($serveArgs + 'serve') `
         -PassThru -NoNewWindow
 
     foreach ($i in 1..40) {
@@ -108,4 +114,4 @@ if ($Seed) {
 
 Show-Banner
 
-& "$repo\gocommerce.exe" -addr "127.0.0.1:$Port" -admin-token $Token serve
+& "$repo\gocommerce.exe" @serveArgs serve

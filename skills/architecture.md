@@ -6,7 +6,7 @@ description: Use when deciding where a new feature belongs, proposing a structur
 # Architecture
 
 The authority is the decision table in [`PLAN.md`](../PLAN.md) §5 — D1 through
-D23, each recorded with the argument that produced it. [`AGENTS.md`](../AGENTS.md)
+D25, each recorded with the argument that produced it. [`AGENTS.md`](../AGENTS.md)
 is the operational summary. This file is the shape those decisions add up to,
 with the D-numbers so you can go and read the full case before disagreeing.
 
@@ -37,8 +37,9 @@ write timeout.
 
 `gocommerce.go`, `catalog.go`, `cart.go`, `checkout.go`, `orders.go`,
 `inventory.go`, `payments.go`, `fulfillment.go`, `outbox.go`, `events.go`,
-`httpx.go`, `doctor.go` are all `package gocommerce`. File discipline replaces
-package fragmentation.
+`httpx.go`, `doctor.go` are all `package gocommerce`, and since D25 they live
+in [`core/`](../core/) rather than at the repo root — the directory moved, the
+package clause did not. File discipline replaces package fragmentation.
 
 Two reasons, and neither is taste:
 
@@ -124,7 +125,9 @@ Two rules follow and both are load-bearing:
 
 ## One repository, one Go module (D23)
 
-`github.com/misiki/gocommerce` is the whole repo. `github.com/jackc/pgx/v5` is
+`github.com/misiki/gocommerce` is the whole repo — that is still the module
+path, though since D25 the engine package itself imports as
+`github.com/misiki/gocommerce/core`. `github.com/jackc/pgx/v5` is
 the only production dependency. There is no `go.work`, no nested `go.mod`, no
 per-extension tags.
 
@@ -170,9 +173,11 @@ order lines across a boundary that a transaction has to cross (S6, D11) — see
 [products](products.md).
 
 Guest checkout is the standing constraint on this test (D22): core has no
-customer concept and never will. An identity module may *add* authenticated
-checkout; it may never make an account required. `superusers` is an operator
-table, and nothing in the commerce path reads it.
+customer concept and never will. `ext/identity` is the identity module that
+constraint anticipated: it *adds* accounts, a saved address book and a
+claimable order history in its own `identity_*` tables, and it may never make
+an account required. `superusers` is an operator table, and nothing in the
+commerce path reads it.
 
 ## Common mistakes
 

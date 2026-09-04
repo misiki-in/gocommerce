@@ -15,18 +15,19 @@ Deeper procedural guides live in [`skills/`](skills/). Start here.
 
 GoCommerce is a commerce **engine**, not an application: a store is its own Go
 program that composes the engine with the modules it needs in `main()`. Read
-`PLAN.md` §5 for the decision table (D1–D23); it is the authority, and this
+`PLAN.md` §5 for the decision table (D1–D25); it is the authority, and this
 file is its operational summary.
 
 ```
-gocommerce.go        App, Config, New, lifecycle
-module.go            Module interface, route namespace enforcement
-schema.go            core migrations (append-only)
-catalog.go cart.go checkout.go orders.go inventory.go payments.go fulfillment.go
-outbox.go events.go  transactional outbox + event bus
-superusers.go        admin identity (email+password sessions)
-doctor.go            operational diagnostics behind `gocommerce doctor`
-httpx.go             JSON envelope, error taxonomy, admin auth, pagination
+core/                the engine — still `package gocommerce`
+  gocommerce.go      App, Config, New, lifecycle
+  module.go          Module interface, route namespace enforcement
+  schema.go          core migrations (append-only)
+  catalog.go cart.go checkout.go orders.go inventory.go payments.go fulfillment.go
+  outbox.go events.go  transactional outbox + event bus
+  superusers.go      admin identity (email+password sessions)
+  doctor.go          operational diagnostics behind `gocommerce doctor`
+  httpx.go           JSON envelope, error taxonomy, admin auth, pagination
 ext/                 bundled modules — see rule 2
 admin/               SvelteKit admin panel, embedded with go:embed
 ```
@@ -40,7 +41,9 @@ is required for tests; there is no mock.
 
 ### 1. One Go module. One production dependency.
 
-`github.com/misiki/gocommerce` is the whole repo. The only third-party
+`github.com/misiki/gocommerce` is the whole repo. The engine is one package,
+`gocommerce`, living in `core/` and imported as
+`github.com/misiki/gocommerce/core` (D25). The only third-party
 production dependency is `github.com/jackc/pgx/v5`. Adding a second is a
 decision that belongs in `PLAN.md`, not in a commit.
 
@@ -94,7 +97,9 @@ state no future version can reason about.
 
 Core has no customer or account concept, and D22 says it never will. An order
 is reachable by its access token; a cart is reachable by its token. Do not add
-a `customer_id` to core. Identity is a module's job through `Config.AdminAuth`.
+a `customer_id` to core. Identity is a module's job: `ext/identity` is that
+module, it owns `identity_*` tables, and it binds an order to an account by
+the order's own access token — never by a column on `orders`.
 
 `superusers` is an **operator** table — the people who administer the store —
 and nothing in the commerce path reads it.
@@ -114,7 +119,7 @@ The envelope is `{"data": ...}` or `{"error": {...}}`, from the taxonomy in
 404s and 405s from the router are converted too — a client decoding JSON must
 never receive Go's plain-text default.
 
-### 11. Every served route appears in `openapi.json`
+### 11. Every served route appears in `core/openapi.json`
 
 A test enforces it, and `gocommerce doctor` re-checks it at runtime. Add the
 path when you add the route. Panel routes are marked `Route.UI` and excluded —
@@ -153,7 +158,8 @@ lines. Do not narrate.
 gofmt -l .                      # must print nothing
 go vet ./...
 go test ./... -count=1          # needs GOCOMMERCE_TEST_DB
-go test -tags no_admin . -count=1
+go build -tags no_admin ./...
+go test -tags no_admin ./core -count=1
 .\scripts\check-docs.ps1        # links resolve; skills still match the code
 .\scripts\smoke.ps1             # against a running store
 .\gocommerce.exe doctor         # operational sanity

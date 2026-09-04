@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/misiki/gocommerce"
+	"github.com/misiki/gocommerce/core"
 )
 
 const defaultBaseURL = "https://control.msg91.com"

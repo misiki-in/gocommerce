@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/misiki/gocommerce"
+	"github.com/misiki/gocommerce/core"
 	"github.com/misiki/gocommerce/gctest"
 )
 

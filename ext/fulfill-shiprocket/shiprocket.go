@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/misiki/gocommerce"
+	"github.com/misiki/gocommerce/core"
 )
 
 const (
