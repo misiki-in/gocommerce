@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/misiki/gocommerce/core"
+	"github.com/misiki/gocommerce/ext/identity"
 )
 
 func main() {
@@ -77,19 +78,23 @@ environment:
                     where uploaded media is written, used when -media-dir is
                     not given; leaving it unset disables uploads and the media
                     library records files by URL only
+  GOCOMMERCE_IDENTITY_RESET_URL
+                    with -identity, the storefront page a password-reset email
+                    links to, with {token} where the token goes
 `)
 	}
 
 	var (
-		dbURL    = fs.String("db", "", "PostgreSQL URL (default $DATABASE_URL)")
-		addr     = fs.String("addr", ":8080", "listen address")
-		tokens   = fs.String("admin-token", "", "admin bearer token(s), comma-separated (default $GOCOMMERCE_ADMIN_TOKEN)")
-		currency = fs.String("currency", gocommerce.DefaultCurrency, "store settlement currency (ISO 4217)")
-		langs    = fs.String("languages", gocommerce.DefaultLanguage, "served languages, comma-separated; the first is the default")
-		dev      = fs.Bool("dev", false, "development mode: permits booting with no admin token")
-		verbose  = fs.Bool("v", false, "verbose (debug) logging")
-		jsonOut  = fs.Bool("json", false, "machine-readable output (doctor)")
-		mediaDir = fs.String("media-dir", "", "directory for uploaded media (default $GOCOMMERCE_MEDIA_DIR; empty disables uploads)")
+		dbURL        = fs.String("db", "", "PostgreSQL URL (default $DATABASE_URL)")
+		addr         = fs.String("addr", ":8080", "listen address")
+		tokens       = fs.String("admin-token", "", "admin bearer token(s), comma-separated (default $GOCOMMERCE_ADMIN_TOKEN)")
+		currency     = fs.String("currency", gocommerce.DefaultCurrency, "store settlement currency (ISO 4217)")
+		langs        = fs.String("languages", gocommerce.DefaultLanguage, "served languages, comma-separated; the first is the default")
+		dev          = fs.Bool("dev", false, "development mode: permits booting with no admin token")
+		verbose      = fs.Bool("v", false, "verbose (debug) logging")
+		jsonOut      = fs.Bool("json", false, "machine-readable output (doctor)")
+		mediaDir     = fs.String("media-dir", "", "directory for uploaded media (default $GOCOMMERCE_MEDIA_DIR; empty disables uploads)")
+		withIdentity = fs.Bool("identity", false, "install the identity module: shopper accounts under /x/identity/ (guest checkout stays)")
 	)
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -145,7 +150,17 @@ environment:
 		cfg.DefaultLanguage = languages[0]
 	}
 
-	app, err := gocommerce.New(cfg)
+	// The reference binary installs no module by default — that is what
+	// proves the engine boots on its own. Accounts are the one capability a
+	// storefront asks for often enough that a flag beats a fork of main().
+	var modules []gocommerce.Module
+	if *withIdentity {
+		modules = append(modules, identity.New(identity.Config{
+			ResetURL: os.Getenv("GOCOMMERCE_IDENTITY_RESET_URL"),
+		}))
+	}
+
+	app, err := gocommerce.New(cfg, modules...)
 	if err != nil {
 		return err
 	}

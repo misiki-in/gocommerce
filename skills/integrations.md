@@ -130,6 +130,14 @@ through the service — `app.Pay().MarkPaid(...)`, `app.Order().Cancel(...)`,
 transition, enforces the invariants and writes the outbox event, all in one
 transaction. You get `app.DB()` for **your** tables.
 
+`ext/identity` is the worked example of reading core without writing it: it
+proves an order belongs to a shopper with `app.Order().GetForGuest(...)` — the
+order's own access token — and records the link in its own `identity_orders`,
+with no foreign key onto `orders` so a module table can never refuse a core
+delete. It also shows a module authenticating its *own* callers: a shopper
+session is the module's middleware, not the engine's admin one, so a shopper
+token opens no admin route and an admin token reads no address book.
+
 ## MCP: the same state machine, a different door
 
 `ext/mcp` mounts `POST /api/admin/x/mcp` through `HandleAdmin`, so the store's

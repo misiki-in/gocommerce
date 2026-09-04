@@ -1284,6 +1284,13 @@ remains the seam for replacing the whole scheme with:
 
 A future identity module owns identity. Core continues to own commerce state.
 
+`ext/identity` is that module for shoppers: email-and-password accounts,
+bearer sessions, a saved address book, and an order history built by *claim* —
+an order joins an account when the client presents the order's access token,
+never because an email matched. It owns `identity_*` tables, writes no core
+table, and D22 holds: checkout never asks for it. Operator identity
+(`superusers`) is unchanged and separate.
+
 ---
 
 ## 21. MCP / agent strategy

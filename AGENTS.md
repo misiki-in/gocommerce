@@ -97,7 +97,9 @@ state no future version can reason about.
 
 Core has no customer or account concept, and D22 says it never will. An order
 is reachable by its access token; a cart is reachable by its token. Do not add
-a `customer_id` to core. Identity is a module's job through `Config.AdminAuth`.
+a `customer_id` to core. Identity is a module's job: `ext/identity` is that
+module, it owns `identity_*` tables, and it binds an order to an account by
+the order's own access token — never by a column on `orders`.
 
 `superusers` is an **operator** table — the people who administer the store —
 and nothing in the commerce path reads it.

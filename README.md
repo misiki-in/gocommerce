@@ -73,7 +73,8 @@ notifications. It may not write core commerce tables — it calls a service,
 which performs the transition and writes the event.
 
 **Guest checkout, permanently.** A shopper buys with a cart token and an email.
-A future identity module may add accounts; it may never make one required.
+The `identity` module adds accounts on top of that; it may never make one
+required.
 
 ## What is in the box
 
@@ -91,6 +92,7 @@ graph):
 | `fulfill-shiprocket` | Booking shipments and waybills |
 | `invoices` | Numbered, gapless invoices on payment |
 | `cms` | Content pages, per language |
+| `identity` | Shopper accounts: sessions, saved addresses, order history, password reset |
 | `mcp` | The store as tools for an AI agent, with an audit trail |
 
 Cash on delivery and manual fulfillment are built in, because they need no

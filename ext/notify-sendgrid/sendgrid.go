@@ -131,6 +131,10 @@ var defaultSubjects = map[string]string{
 	gocommerce.EventOrderShipped:   "Order {{.order_number}} is on its way",
 	gocommerce.EventOrderDelivered: "Order {{.order_number}} was delivered",
 	gocommerce.EventOrderCancelled: "Order {{.order_number}} was cancelled",
+
+	// Sent by the identity module. The event name is spelled out rather than
+	// imported so a store without accounts does not link the module.
+	"identity.password_reset": "Reset your password",
 }
 
 var defaultBodies = map[string]string{
@@ -163,6 +167,17 @@ Order {{.order_number}} has been delivered. We hope you like it.`,
 
 Order {{.order_number}} has been cancelled.
 {{if .reason}}Reason: {{.reason}}{{end}}`,
+
+	"identity.password_reset": `Hello {{.customer_name}},
+
+Somebody asked to reset the password for {{.customer_email}}. If that was you,
+{{if .reset_url}}open this link within {{.expires_in_minutes}} minutes:
+
+{{.reset_url}}{{else}}use this code within {{.expires_in_minutes}} minutes:
+
+{{.reset_token}}{{end}}
+
+If it was not you, nothing has changed and you can ignore this message.`,
 }
 
 // Notify implements gocommerce.Notifier.

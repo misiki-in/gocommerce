@@ -180,6 +180,13 @@ briefly unreachable. For a permanent rejection — a malformed address — log i
 and return nil, or you will spend twelve delivery attempts learning the same
 thing.
 
+Events are not only core's. A module with something to tell a shopper sends a
+`Notification` of its own — `ext/identity` sends `identity.password_reset`
+with `reset_token`, `reset_url` and `expires_in_minutes` in `Data` — and your
+notifier either has a template for that event name or ignores it. An event
+with no template is not an error: a store may install modules yours has never
+heard of.
+
 ## Contributing to the API contract
 
 Implement `OpenAPI() []byte` and your paths are merged into the document served

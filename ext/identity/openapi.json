@@ -1,0 +1,440 @@
+{
+  "paths": {
+    "/x/identity/register": {
+      "post": {
+        "tags": ["identity"],
+        "summary": "Create an account and sign in",
+        "description": "Guest checkout is untouched: an account is never required. Registering returns a session token to send as `Authorization: Bearer <token>`.",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdentityRegisterInput"}}}
+        },
+        "responses": {
+          "201": {"$ref": "#/components/responses/IdentityAuthResponse"},
+          "400": {"$ref": "#/components/responses/IdentityValidation"},
+          "409": {"description": "An account already exists for this email.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}}
+        }
+      }
+    },
+    "/x/identity/login": {
+      "post": {
+        "tags": ["identity"],
+        "summary": "Sign in with an email and a password",
+        "description": "Wrong password and unknown email give the identical 400, so the endpoint cannot be used to discover who has an account. Repeated failures from one address are throttled.",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdentityLoginInput"}}}
+        },
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityAuthResponse"},
+          "400": {"description": "Invalid login credentials.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}},
+          "429": {"description": "Too many failed attempts.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}}
+        }
+      }
+    },
+    "/x/identity/logout": {
+      "post": {
+        "tags": ["identity"],
+        "summary": "End this session",
+        "security": [{"customerSession": []}],
+        "responses": {
+          "204": {"description": "The session is revoked."},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      }
+    },
+    "/x/identity/refresh": {
+      "post": {
+        "tags": ["identity"],
+        "summary": "Extend this session and say whose it is",
+        "description": "The same token comes back with a later expiry; it is not rotated, so other open tabs keep working.",
+        "security": [{"customerSession": []}],
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityAuthResponse"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      }
+    },
+    "/x/identity/me": {
+      "get": {
+        "tags": ["identity"],
+        "summary": "The signed-in account",
+        "security": [{"customerSession": []}],
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityCustomerResponse"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      },
+      "patch": {
+        "tags": ["identity"],
+        "summary": "Update the signed-in account's details",
+        "security": [{"customerSession": []}],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdentityCustomerPatch"}}}
+        },
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityCustomerResponse"},
+          "400": {"$ref": "#/components/responses/IdentityValidation"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"},
+          "409": {"description": "Another account already uses the new email.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}}
+        }
+      }
+    },
+    "/x/identity/me/password": {
+      "put": {
+        "tags": ["identity"],
+        "summary": "Change the password",
+        "description": "Every other session is revoked; the response carries a fresh token for this one.",
+        "security": [{"customerSession": []}],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "required": ["current_password", "password"],
+            "properties": {
+              "current_password": {"type": "string", "format": "password"},
+              "password": {"type": "string", "format": "password", "minLength": 8}
+            }
+          }}}
+        },
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityAuthResponse"},
+          "400": {"description": "The current password is wrong, or the new one is too short.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      }
+    },
+    "/x/identity/password-reset": {
+      "post": {
+        "tags": ["identity"],
+        "summary": "Ask for a password-reset email",
+        "description": "Always answers 202. Whether the address has an account is told only to that address, by email: the notification event `identity.password_reset` carries `reset_token` and, when the store configured a reset URL, `reset_url`.",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "required": ["email"],
+            "properties": {"email": {"type": "string", "format": "email"}}
+          }}}
+        },
+        "responses": {
+          "202": {"description": "Accepted.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"type": "object", "properties": {"accepted": {"type": "boolean"}}}}
+          }}}},
+          "400": {"$ref": "#/components/responses/IdentityValidation"}
+        }
+      }
+    },
+    "/x/identity/password-reset/confirm": {
+      "post": {
+        "tags": ["identity"],
+        "summary": "Set a new password with a reset token",
+        "description": "Spends the token, revokes every existing session and signs the shopper in.",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "required": ["token", "password"],
+            "properties": {
+              "token": {"type": "string"},
+              "password": {"type": "string", "format": "password", "minLength": 8}
+            }
+          }}}
+        },
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityAuthResponse"},
+          "400": {"description": "The token is unknown, used or expired (`invalid_token`), or the password is too short.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}}
+        }
+      }
+    },
+    "/x/identity/me/addresses": {
+      "get": {
+        "tags": ["identity"],
+        "summary": "The account's address book, default first",
+        "security": [{"customerSession": []}],
+        "parameters": [{"$ref": "#/components/parameters/IdentityLimit"}, {"$ref": "#/components/parameters/IdentityPage"}, {"$ref": "#/components/parameters/IdentityOffset"}],
+        "responses": {
+          "200": {"description": "A page of addresses.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {
+              "data": {"type": "array", "items": {"$ref": "#/components/schemas/IdentityAddress"}},
+              "meta": {"$ref": "#/components/schemas/ListMeta"}
+            }
+          }}}},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      },
+      "post": {
+        "tags": ["identity"],
+        "summary": "Save an address",
+        "description": "The first address an account saves becomes its default.",
+        "security": [{"customerSession": []}],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdentityAddressInput"}}}
+        },
+        "responses": {
+          "201": {"$ref": "#/components/responses/IdentityAddressResponse"},
+          "400": {"$ref": "#/components/responses/IdentityValidation"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      }
+    },
+    "/x/identity/me/addresses/{id}": {
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "format": "int64"}}],
+      "get": {
+        "tags": ["identity"],
+        "summary": "One saved address",
+        "security": [{"customerSession": []}],
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityAddressResponse"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      },
+      "patch": {
+        "tags": ["identity"],
+        "summary": "Change a saved address",
+        "description": "Making an address the default un-defaults the rest. The default cannot be switched off, only moved.",
+        "security": [{"customerSession": []}],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdentityAddressInput"}}}
+        },
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityAddressResponse"},
+          "400": {"$ref": "#/components/responses/IdentityValidation"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      },
+      "delete": {
+        "tags": ["identity"],
+        "summary": "Remove a saved address",
+        "security": [{"customerSession": []}],
+        "responses": {
+          "204": {"description": "Removed. If it was the default, the newest remaining address inherits."},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/x/identity/me/orders": {
+      "get": {
+        "tags": ["identity"],
+        "summary": "The account's order history",
+        "description": "Orders the account has claimed, newest claim first. Never includes an order's access token.",
+        "security": [{"customerSession": []}],
+        "parameters": [{"$ref": "#/components/parameters/IdentityLimit"}, {"$ref": "#/components/parameters/IdentityPage"}, {"$ref": "#/components/parameters/IdentityOffset"}],
+        "responses": {
+          "200": {"description": "A page of orders.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {
+              "data": {"type": "array", "items": {"$ref": "#/components/schemas/Order"}},
+              "meta": {"$ref": "#/components/schemas/ListMeta"}
+            }
+          }}}},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"}
+        }
+      },
+      "post": {
+        "tags": ["identity"],
+        "summary": "Claim an order into this account",
+        "description": "The order's access token — returned once, at checkout — is the proof of purchase. Guest checkout does not change; this is how an order placed as a guest, or while signed in, becomes part of the account's history. Claiming the same order twice is a 200.",
+        "security": [{"customerSession": []}],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "required": ["number", "token"],
+            "properties": {
+              "number": {"type": "string", "description": "The order number."},
+              "token": {"type": "string", "description": "The order's access token."}
+            }
+          }}}
+        },
+        "responses": {
+          "201": {"$ref": "#/components/responses/OrderResponse"},
+          "200": {"$ref": "#/components/responses/OrderResponse"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"},
+          "409": {"description": "The order already belongs to another account.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}}
+        }
+      }
+    },
+    "/x/identity/me/orders/{number}": {
+      "get": {
+        "tags": ["identity"],
+        "summary": "One order from the account's history",
+        "security": [{"customerSession": []}],
+        "parameters": [{"name": "number", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {
+          "200": {"$ref": "#/components/responses/OrderResponse"},
+          "401": {"$ref": "#/components/responses/IdentityUnauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/api/admin/x/identity/customers": {
+      "get": {
+        "tags": ["admin:identity"],
+        "summary": "List accounts",
+        "security": [{"adminToken": []}],
+        "parameters": [
+          {"name": "q", "in": "query", "required": false, "schema": {"type": "string"}, "description": "Matches an email or a name."},
+          {"$ref": "#/components/parameters/IdentityLimit"}, {"$ref": "#/components/parameters/IdentityPage"}, {"$ref": "#/components/parameters/IdentityOffset"}
+        ],
+        "responses": {
+          "200": {"description": "A page of accounts.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {
+              "data": {"type": "array", "items": {"$ref": "#/components/schemas/IdentityCustomer"}},
+              "meta": {"$ref": "#/components/schemas/ListMeta"}
+            }
+          }}}}
+        }
+      }
+    },
+    "/api/admin/x/identity/customers/{id}": {
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "format": "int64"}}],
+      "get": {
+        "tags": ["admin:identity"],
+        "summary": "One account",
+        "security": [{"adminToken": []}],
+        "responses": {
+          "200": {"$ref": "#/components/responses/IdentityCustomerResponse"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      },
+      "delete": {
+        "tags": ["admin:identity"],
+        "summary": "Delete an account",
+        "description": "Removes the account, its sessions, its address book and its order links. The orders themselves are core's and stay.",
+        "security": [{"adminToken": []}],
+        "responses": {
+          "204": {"description": "Deleted."},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "customerSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "A shopper session token from /x/identity/register, /x/identity/login or a password reset."
+      }
+    },
+    "parameters": {
+      "IdentityLimit": {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 1, "maximum": 200}},
+      "IdentityPage": {"name": "page", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 1}},
+      "IdentityOffset": {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0}}
+    },
+    "schemas": {
+      "IdentityCustomer": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer", "format": "int64"},
+          "email": {"type": "string", "format": "email"},
+          "name": {"type": "string"},
+          "phone": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "IdentityCustomerPatch": {
+        "type": "object",
+        "properties": {
+          "email": {"type": "string", "format": "email"},
+          "name": {"type": "string"},
+          "phone": {"type": "string"}
+        }
+      },
+      "IdentityRegisterInput": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {"type": "string", "format": "email"},
+          "password": {"type": "string", "format": "password", "minLength": 8},
+          "name": {"type": "string"},
+          "phone": {"type": "string"}
+        }
+      },
+      "IdentityLoginInput": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {"type": "string", "format": "email"},
+          "password": {"type": "string", "format": "password"}
+        }
+      },
+      "IdentityAuth": {
+        "type": "object",
+        "properties": {
+          "token": {"type": "string", "description": "Send as `Authorization: Bearer <token>`."},
+          "expires_at": {"type": "string", "format": "date-time"},
+          "record": {"$ref": "#/components/schemas/IdentityCustomer"}
+        }
+      },
+      "IdentityAddress": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer", "format": "int64"},
+          "label": {"type": "string", "description": "What the shopper calls it — Home, Office."},
+          "name": {"type": "string"},
+          "phone": {"type": "string"},
+          "line1": {"type": "string"},
+          "line2": {"type": "string"},
+          "city": {"type": "string"},
+          "state": {"type": "string"},
+          "postal_code": {"type": "string"},
+          "country": {"type": "string"},
+          "is_default": {"type": "boolean"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "IdentityAddressInput": {
+        "type": "object",
+        "description": "On create, line1, city, postal_code and country are required. On patch every field is optional.",
+        "properties": {
+          "label": {"type": "string"},
+          "name": {"type": "string"},
+          "phone": {"type": "string"},
+          "line1": {"type": "string"},
+          "line2": {"type": "string"},
+          "city": {"type": "string"},
+          "state": {"type": "string"},
+          "postal_code": {"type": "string"},
+          "country": {"type": "string"},
+          "is_default": {"type": "boolean"}
+        }
+      }
+    },
+    "responses": {
+      "IdentityAuthResponse": {
+        "description": "A session and the account it belongs to.",
+        "content": {"application/json": {"schema": {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/IdentityAuth"}}}}}
+      },
+      "IdentityCustomerResponse": {
+        "description": "An account.",
+        "content": {"application/json": {"schema": {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/IdentityCustomer"}}}}}
+      },
+      "IdentityAddressResponse": {
+        "description": "A saved address.",
+        "content": {"application/json": {"schema": {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/IdentityAddress"}}}}}
+      },
+      "IdentityUnauthorized": {
+        "description": "No session, or an expired one.",
+        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}
+      },
+      "IdentityValidation": {
+        "description": "The request failed validation.",
+        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorEnvelope"}}}
+      }
+    }
+  }
+}

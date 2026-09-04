@@ -23,6 +23,7 @@ import (
 	"github.com/misiki/gocommerce/core"
 
 	"github.com/misiki/gocommerce/ext/cms"
+	"github.com/misiki/gocommerce/ext/identity"
 	"github.com/misiki/gocommerce/ext/invoices"
 	"github.com/misiki/gocommerce/ext/mcp"
 	sendgrid "github.com/misiki/gocommerce/ext/notify-sendgrid"
@@ -49,6 +50,14 @@ func main() {
 		// token is the agent's credential, and every change it makes is
 		// recorded in an audit table.
 		mcp.New(mcp.Config{ServerName: "example-store"}),
+
+		// Shopper accounts, at /x/identity/. Optional in the strongest
+		// sense: guest checkout keeps working exactly as before, and an
+		// account only adds saved addresses and a claimable order history.
+		// The reset email goes through whichever notifier is installed below.
+		identity.New(identity.Config{
+			ResetURL: "https://shop.example.com/auth/reset-password?token={token}",
+		}),
 	}
 
 	// Card payments, if the keys are configured. Adding Stripe changes no

@@ -173,9 +173,11 @@ order lines across a boundary that a transaction has to cross (S6, D11) — see
 [products](products.md).
 
 Guest checkout is the standing constraint on this test (D22): core has no
-customer concept and never will. An identity module may *add* authenticated
-checkout; it may never make an account required. `superusers` is an operator
-table, and nothing in the commerce path reads it.
+customer concept and never will. `ext/identity` is the identity module that
+constraint anticipated: it *adds* accounts, a saved address book and a
+claimable order history in its own `identity_*` tables, and it may never make
+an account required. `superusers` is an operator table, and nothing in the
+commerce path reads it.
 
 ## Common mistakes
 
